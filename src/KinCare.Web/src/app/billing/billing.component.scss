@@ -1,0 +1,171 @@
+.billing-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1a237e;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+  }
+}
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 64px;
+}
+
+.error-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #ffebee;
+  border-radius: 8px;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.billing-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.current-plan-card, .plans-card {
+  border-radius: 12px;
+}
+
+.plan-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 16px;
+
+  &.plan-starter { background: #e3f2fd; color: #1565c0; }
+  &.plan-professional { background: #e8f5e9; color: #2e7d32; }
+  &.plan-enterprise { background: #f3e5f5; color: #6a1b9a; }
+}
+
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+
+  mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
+
+  &.status-active { background: #e8f5e9; color: #2e7d32; }
+  &.status-trial { background: #fff8e1; color: #f57f17; }
+  &.status-inactive { background: #ffebee; color: #c62828; }
+}
+
+.divider { margin: 16px 0; }
+
+.usage-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 24px;
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a237e;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 4px;
+    }
+  }
+}
+
+.portal-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plan-option {
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s;
+
+  &.current {
+    border-color: #1a237e;
+    background: #f8f9ff;
+  }
+
+  .plan-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a237e;
+    margin-bottom: 12px;
+  }
+
+  .feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 0.875rem;
+      color: #444;
+      margin-bottom: 6px;
+    }
+
+    .check-icon {
+      font-size: 1rem;
+      width: 1rem;
+      height: 1rem;
+      color: #4caf50;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+  }
+
+  button, a {
+    width: 100%;
+  }
+}

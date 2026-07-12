@@ -1,0 +1,275 @@
+.residents-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+
+  .page-header {
+    margin-bottom: 2.5rem;
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      margin: 0 0 1rem;
+      color: #000000;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .subtitle {
+      font-size: 1.5rem;
+      color: #000000;
+      font-weight: 600;
+      margin: 0;
+    }
+  }
+
+  .loading-state,
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+
+    mat-spinner {
+      margin-bottom: 2rem;
+    }
+
+    mat-icon {
+      font-size: 8rem;
+      width: 8rem;
+      height: 8rem;
+      color: #9fa8da;
+      margin-bottom: 2rem;
+    }
+
+    h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0 0 1rem;
+      color: #000000;
+    }
+
+    p {
+      font-size: 1.5rem;
+      color: #000000;
+      font-weight: 500;
+      margin: 0;
+    }
+  }
+
+  .residents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    gap: 2rem;
+
+    .resident-card {
+      background: #ffffff;
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25) !important;
+      }
+
+      mat-card-header {
+        padding: 1.5rem;
+        border-bottom: 3px solid #e0e0e0;
+
+        .resident-header {
+          display: flex;
+          gap: 1.5rem;
+          width: 100%;
+          align-items: flex-start;
+
+          .resident-avatar {
+            flex-shrink: 0;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3f51b5 0%, #536dfe 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 16px rgba(63, 81, 181, 0.3);
+
+            mat-icon {
+              font-size: 60px;
+              width: 60px;
+              height: 60px;
+              color: white;
+            }
+          }
+
+          .resident-info {
+            flex: 1;
+
+            h2 {
+              font-size: 2rem;
+              font-weight: 700;
+              margin: 0 0 1rem;
+              color: #000000;
+            }
+
+            .special-needs-badges {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 0.75rem;
+
+              mat-chip {
+                font-size: 1rem !important;
+                padding: 0.75rem 1.25rem !important;
+                min-height: 44px !important;
+                font-weight: 700 !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+
+                mat-icon {
+                  font-size: 1.5rem !important;
+                  width: 1.5rem !important;
+                  height: 1.5rem !important;
+                  margin: 0 !important;
+                }
+
+                &.need-wheelchair {
+                  background-color: #7b1fa2 !important;
+                  color: white !important;
+                  border: 3px solid #4a148c !important;
+                }
+
+                &.need-oxygen {
+                  background-color: #00796b !important;
+                  color: white !important;
+                  border: 3px solid #004d40 !important;
+                }
+
+                &.need-stretcher {
+                  background-color: #c62828 !important;
+                  color: white !important;
+                  border: 3px solid #b71c1c !important;
+                }
+
+                &.need-walker {
+                  background-color: #f57c00 !important;
+                  color: white !important;
+                  border: 3px solid #e65100 !important;
+                }
+
+                &.need-ambulatory {
+                  background-color: #388e3c !important;
+                  color: white !important;
+                  border: 3px solid #1b5e20 !important;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      mat-card-content {
+        padding: 1.5rem;
+
+        .driver-notes {
+          display: flex;
+          gap: 1rem;
+          align-items: flex-start;
+
+          mat-icon {
+            font-size: 2rem;
+            width: 2rem;
+            height: 2rem;
+            color: #3f51b5;
+            flex-shrink: 0;
+            margin-top: 0.25rem;
+          }
+
+          p {
+            margin: 0;
+            font-size: 1.25rem;
+            line-height: 1.6;
+            color: #000000;
+            font-weight: 500;
+          }
+        }
+      }
+
+      mat-card-actions {
+        padding: 1rem 1.5rem 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+
+        button {
+          font-size: 1.125rem !important;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .residents-container {
+    padding: 1.5rem 1rem;
+
+    .page-header h1 {
+      font-size: 2.25rem;
+    }
+
+    .page-header .subtitle {
+      font-size: 1.25rem;
+    }
+
+    .residents-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+}
+
+.fab-button {
+  position: fixed;
+  bottom: 3rem;
+  right: 3rem;
+  z-index: 100;
+  box-shadow: 0 12px 24px rgba(0, 150, 136, 0.5), 0 6px 12px rgba(0, 150, 136, 0.3) !important;
+  transition: all 0.3s ease;
+  width: 72px !important;
+  height: 72px !important;
+
+  mat-icon {
+    font-size: 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  &:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 20px 40px rgba(0, 150, 136, 0.6) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .fab-button {
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px !important;
+    height: 60px !important;
+  }
+}
+
+mat-paginator {
+  margin-top: 2rem;
+  background: transparent;
+  ::ng-deep {
+    .mat-mdc-paginator-container {
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .mat-mdc-paginator-range-label {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #000;
+    }
+  }
+}

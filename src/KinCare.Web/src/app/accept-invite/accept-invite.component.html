@@ -1,0 +1,52 @@
+<div class="invite-container">
+  @if (loading) {
+    <mat-spinner></mat-spinner>
+  } @else if (error && !invite) {
+    <mat-card>
+      <mat-card-content>
+        <p class="error">{{ error }}</p>
+      </mat-card-content>
+    </mat-card>
+  } @else if (invite) {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Join {{ invite.organizationName }}</mat-card-title>
+        <mat-card-subtitle>
+          You've been invited as {{ invite.role }}
+          @if (invite.facilityName) {
+            at {{ invite.facilityName }}
+          }
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (error) {
+          <p class="error">{{ error }}</p>
+        }
+
+        <p class="email-display">Signing up as: <strong>{{ invite.email }}</strong></p>
+
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <mat-form-field appearance="outline">
+            <mat-label>First Name</mat-label>
+            <input matInput formControlName="firstName" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Last Name</mat-label>
+            <input matInput formControlName="lastName" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Create Password</mat-label>
+            <input matInput type="password" formControlName="password" />
+            <mat-hint>Minimum 8 characters</mat-hint>
+          </mat-form-field>
+
+          <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">
+            Accept & Create Account
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

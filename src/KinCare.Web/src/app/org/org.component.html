@@ -1,0 +1,151 @@
+<div class="org-page">
+  <div class="page-header">
+    <div>
+      <h1>Organization Management</h1>
+      <p class="subtitle">Manage your team, facilities, and view org-wide metrics.</p>
+    </div>
+    <a mat-flat-button color="primary" routerLink="/branches">
+      <mat-icon>business</mat-icon>
+      Manage Branches
+    </a>
+  </div>
+
+  <!-- Metrics row -->
+  @if (loadingMetrics) {
+    <div class="metrics-loading"><mat-spinner diameter="32"></mat-spinner></div>
+  } @else if (metrics) {
+    <div class="metrics-row">
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <div class="metric-value">{{ metrics.facilityCount }}</div>
+          <div class="metric-label">Facilities</div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <div class="metric-value">{{ metrics.ridesThisMonth }}</div>
+          <div class="metric-label">Rides this month</div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <div class="metric-value">{{ metrics.completionRate | number:'1.0-0' }}%</div>
+          <div class="metric-label">Completion rate</div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <div class="metric-value">{{ metrics.avgResponseMinutes | number:'1.0-0' }}m</div>
+          <div class="metric-label">Avg response time</div>
+        </mat-card-content>
+      </mat-card>
+      @if (metrics.topVendor) {
+        <mat-card class="metric-card">
+          <mat-card-content>
+            <div class="metric-value metric-vendor">{{ metrics.topVendor }}</div>
+            <div class="metric-label">Top vendor</div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+
+  <!-- Team management -->
+  <mat-card class="team-card">
+    <mat-card-header>
+      <mat-card-title>Team</mat-card-title>
+      <span class="spacer"></span>
+      <button mat-flat-button color="primary" (click)="showInviteForm = !showInviteForm">
+        <mat-icon>person_add</mat-icon>
+        Invite User
+      </button>
+    </mat-card-header>
+    <mat-card-content>
+
+      @if (showInviteForm) {
+        <form [formGroup]="inviteForm" (ngSubmit)="invite()" class="invite-form">
+          <mat-form-field appearance="outline">
+            <mat-label>Email Address</mat-label>
+            <input matInput type="email" formControlName="email" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Role</mat-label>
+            <mat-select formControlName="role">
+              <mat-option value="Coordinator">Coordinator</mat-option>
+              <mat-option value="OrgAdmin">Org Admin</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <div class="invite-actions">
+            <button mat-stroked-button type="button" (click)="showInviteForm = false">Cancel</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="inviteForm.invalid || inviting">
+              @if (inviting) { <mat-spinner diameter="18"></mat-spinner> } @else { Send Invite }
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (loadingUsers) {
+        <div class="loading-center"><mat-spinner diameter="36"></mat-spinner></div>
+      } @else {
+        <table mat-table [dataSource]="users" class="users-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let u">{{ u.firstName }} {{ u.lastName }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <td mat-cell *matCellDef="let u">{{ u.email }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef>Role</th>
+            <td mat-cell *matCellDef="let u">
+              <mat-chip [color]="u.role === 'OrgAdmin' ? 'accent' : 'primary'" selected>{{ u.role }}</mat-chip>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="facility">
+            <th mat-header-cell *matHeaderCellDef>Facility</th>
+            <td mat-cell *matCellDef="let u">{{ u.facilityName || '—' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let u">
+              <span class="status-dot" [class.active]="u.isActive"></span>
+              {{ u.isActive ? 'Active' : 'Inactive' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let u">
+              @if (u.isActive) {
+                <button mat-icon-button color="warn"
+                        (click)="deactivateUser(u.id)"
+                        [disabled]="deactivating === u.id"
+                        title="Deactivate user">
+                  <mat-icon>person_off</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="userColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: userColumns;"
+              [class.inactive-row]="!row.isActive"></tr>
+        </table>
+
+        @if (users.length === 0) {
+          <div class="empty-state">
+            <mat-icon>group</mat-icon>
+            <p>No team members yet. Invite your first coordinator.</p>
+          </div>
+        }
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

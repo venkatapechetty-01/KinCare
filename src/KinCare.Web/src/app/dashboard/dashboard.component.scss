@@ -1,0 +1,399 @@
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+
+  .dashboard-header {
+    margin-bottom: 2.5rem;
+
+    h1 {
+      font-size: 3rem;  // Much larger heading
+      font-weight: 700;
+      margin: 0 0 1rem;
+      color: #000000;  // Pure black for maximum contrast
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .subtitle {
+      font-size: 1.5rem;  // Larger subtitle
+      color: #000000;
+      font-weight: 600;
+      margin: 0;
+    }
+  }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1rem;
+
+    mat-spinner {
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: rgba(0, 0, 0, 0.6);
+    }
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8rem 2rem;
+    text-align: center;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    border: 3px solid #e0e0e0;
+
+    mat-icon {
+      font-size: 8rem;  // Much larger icon
+      width: 8rem;
+      height: 8rem;
+      color: #9fa8da;  // More visible color
+      margin-bottom: 2rem;
+    }
+
+    h2 {
+      font-size: 2.5rem;  // Larger heading
+      font-weight: 700;
+      margin: 0 0 1.5rem;
+      color: #000000;
+    }
+
+    p {
+      font-size: 1.5rem;  // Larger text
+      color: #000000;
+      font-weight: 500;
+      margin: 0;
+      max-width: 600px;
+      line-height: 1.8;
+    }
+  }
+
+  .rides-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 2rem;
+
+    .ride-card {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-left: 8px solid #3f51b5;  // Thicker border
+      background: #ffffff;
+
+      &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25) !important;
+      }
+
+      &.urgent {
+        border-left-color: #c62828;  // Deeper red
+        background-color: #ffebee;
+        border: 3px solid #c62828 !important;
+        border-left-width: 8px !important;
+      }
+
+      mat-card-header {
+        padding: 1.5rem 1.5rem 1rem;
+        margin-bottom: 0;
+
+        .ride-header {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1rem;
+
+          .ride-info {
+            flex: 1;
+
+            h3 {
+              font-size: 1.75rem;  // Much larger resident name
+              font-weight: 700;
+              margin: 0 0 0.75rem;
+              color: #000000;
+            }
+
+            .pickup-time {
+              display: flex;
+              align-items: center;
+              gap: 0.75rem;
+              font-size: 1.25rem;  // Larger time
+              color: #000000;
+              font-weight: 600;
+              margin: 0;
+
+              mat-icon {
+                font-size: 1.75rem;
+                width: 1.75rem;
+                height: 1.75rem;
+                color: #3f51b5;
+              }
+            }
+          }
+
+          mat-chip {
+            font-size: 1.125rem !important;  // Much larger status badge
+            padding: 0.75rem 1.5rem !important;
+            height: auto !important;
+            min-height: 48px !important;
+            font-weight: 800 !important;
+
+            &.status-dispatched {
+              background-color: #1976d2 !important;
+              color: #ffffff !important;
+              border: 3px solid #0d47a1 !important;
+            }
+
+            &.status-confirmed {
+              background-color: #388e3c !important;
+              color: #ffffff !important;
+              border: 3px solid #1b5e20 !important;
+            }
+
+            &.status-enroute {
+              background-color: #f57c00 !important;
+              color: #ffffff !important;
+              border: 3px solid #e65100 !important;
+            }
+
+            &.status-arrived {
+              background-color: #7b1fa2 !important;
+              color: #ffffff !important;
+              border: 3px solid #4a148c !important;
+            }
+
+            &.status-pickedup {
+              background-color: #e65100 !important;
+              color: #ffffff !important;
+              border: 3px solid #bf360c !important;
+            }
+
+            &.status-atdestination {
+              background-color: #2e7d32 !important;
+              color: #ffffff !important;
+              border: 3px solid #1b5e20 !important;
+            }
+
+            &.status-dropped {
+              background-color: #00796b !important;
+              color: #ffffff !important;
+              border: 3px solid #004d40 !important;
+            }
+
+            &.status-completed {
+              background-color: #2e7d32 !important;
+              color: #ffffff !important;
+              border: 3px solid #1b5e20 !important;
+            }
+
+            &.status-cancelled {
+              background-color: #c62828 !important;
+              color: #ffffff !important;
+              border: 3px solid #b71c1c !important;
+            }
+          }
+        }
+      }
+
+      mat-card-content {
+        padding: 1rem 1.5rem 1.5rem;
+
+        .location {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          font-size: 1.25rem;  // Larger location text
+          line-height: 1.6;
+
+          mat-icon {
+            font-size: 2rem;
+            width: 2rem;
+            height: 2rem;
+            color: #3f51b5;
+            margin-top: 0.25rem;
+            flex-shrink: 0;
+          }
+
+          span {
+            flex: 1;
+            line-height: 1.6;
+            color: #000000;
+            font-weight: 600;
+          }
+        }
+
+        .ride-meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 1.5rem;
+          padding-top: 1rem;
+          border-top: 3px solid #e0e0e0;
+
+          .vendor,
+          .channel {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.125rem;  // Larger meta text
+            color: #000000;
+            font-weight: 600;
+
+            mat-icon {
+              font-size: 1.5rem;
+              width: 1.5rem;
+              height: 1.5rem;
+              color: #3f51b5;
+            }
+          }
+        }
+
+        .tracking-live {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-top: 1rem;
+          padding: 0.75rem 1rem;
+          background: #e8f5e9;
+          border-radius: 8px;
+          border: 2px solid #388e3c;
+          font-size: 1.1rem;
+          font-weight: 600;
+
+          .live-dot {
+            color: #388e3c;
+            animation: pulse 1.5s infinite;
+          }
+
+          .map-link {
+            margin-left: auto;
+            color: #3f51b5;
+            font-weight: 700;
+            text-decoration: none;
+            &:hover { text-decoration: underline; }
+          }
+        }
+
+        .tracking-pending {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-top: 1rem;
+          padding: 0.75rem 1rem;
+          background: #f5f5f5;
+          border-radius: 8px;
+          border: 2px solid #e0e0e0;
+          font-size: 1rem;
+          color: #666;
+
+          mat-icon { color: #9e9e9e; }
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+// Skeleton loader
+.skeleton-card {
+  pointer-events: none;
+  min-height: 180px;
+  padding: 1.5rem;
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.skeleton-title { height: 20px; width: 60%; }
+.skeleton-line { height: 14px; width: 90%; }
+.skeleton-line.short { width: 45%; }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// Card hover lift (overrides the .rides-grid .ride-card rule with a more specific block)
+.rides-grid .ride-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: translateY(-1px);
+  }
+}
+
+// Live tracking pulse dot
+.live-dot {
+  color: #4caf50;
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.fab-button {
+  position: fixed;
+  bottom: 3rem;
+  right: 3rem;
+  z-index: 100;
+  box-shadow: 0 12px 24px rgba(0, 150, 136, 0.5), 0 6px 12px rgba(0, 150, 136, 0.3) !important;
+  transition: all 0.3s ease;
+  width: 96px !important;  // Extra large FAB
+  height: 96px !important;
+
+  mat-icon {
+    font-size: 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  &:hover {
+    transform: translateY(-6px) scale(1.1);
+    box-shadow: 0 20px 40px rgba(0, 150, 136, 0.6), 0 12px 20px rgba(0, 150, 136, 0.4) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1.5rem 1rem;
+
+    .dashboard-header h1 {
+      font-size: 2.25rem;  // Still large on mobile
+    }
+
+    .dashboard-header .subtitle {
+      font-size: 1.25rem;
+    }
+
+    .rides-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+
+.fab-button {
+    bottom: 2rem;
+    right: 2rem;
+    width: 80px !important;
+    height: 80px !important;
+
+    mat-icon {
+      font-size: 40px !important;
+      width: 40px !important;
+      height: 40px !important;
+    }
+  }
+}

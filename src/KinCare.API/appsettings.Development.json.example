@@ -1,0 +1,96 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Debug",
+      "Microsoft.IdentityModel": "Debug",
+      "Microsoft.EntityFrameworkCore": "Information"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=kincare_dev;Username=postgres;Password=your_password"
+  },
+  "Jwt": {
+    "SecretKey": "YOUR_SECRET_KEY_MIN_32_CHARS_REPLACE_THIS!!",
+    "Issuer": "KinCareAPI",
+    "Audience": "KinCareUsers",
+    "AccessTokenExpiryMinutes": 60,
+    "RefreshTokenExpiryDays": 30
+  },
+  "Twilio": {
+    "AccountSid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "AuthToken": "your_auth_token_here",
+    "FromNumber": "+1xxxxxxxxxx"
+  },
+  "Firebase": {
+    "CredentialPath": "./firebase-service-account.json"
+  },
+  "Stripe": {
+    "SecretKey": "sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "WebhookSecret": "whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "StarterPriceId": "price_xxxxxxxxxxxxxxxxxxxx",
+    "ProfessionalPriceId": "price_xxxxxxxxxxxxxxxxxxxx",
+    "EnterprisePriceId": "price_xxxxxxxxxxxxxxxxxxxx",
+    "TrialPeriodDays": 14
+  },
+  "SendGrid": {
+    "ApiKey": "SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "FromEmail": "noreply@kincare.io",
+    "FromName": "KinCare"
+  },
+  "Broker": {
+    "BaseUrl": "https://api.roundtriphealth.com",
+    "ApiKey": "your_roundtrip_api_key",
+    "ClientId": "your_roundtrip_client_id",
+    "ClientSecret": "your_roundtrip_client_secret",
+    "Audience": "https://api.roundtriphealth.com",
+    "OrganizationId": "your_roundtrip_organization_id",
+    "WebhookSecret": "your_roundtrip_webhook_signing_secret"
+  },
+  "App": {
+    "BaseUrl": "http://localhost:4200"
+  },
+  "GoogleMaps": {
+    "ApiKey": "YOUR_GOOGLE_MAPS_EMBED_API_KEY"
+  },
+  "Splunk": {
+    "HecUrl": "https://your-splunk-host:8088/services/collector",
+    "HecToken": "YOUR_HEC_TOKEN"
+  },
+  "IpRateLimit": {
+    "EnableEndpointRateLimiting": true,
+    "StackBlockedRequests": false,
+    "HttpStatusCode": 429,
+    "GeneralRules": [
+      {
+        "Endpoint": "POST:/api/auth/login",
+        "Period": "1m",
+        "Limit": 5
+      },
+      {
+        "Endpoint": "POST:/api/onboarding/register",
+        "Period": "1m",
+        "Limit": 3
+      },
+      {
+        "Endpoint": "POST:/webhook/twilio",
+        "Period": "1m",
+        "Limit": 60
+      },
+      {
+        "Endpoint": "POST:/api/rides/location",
+        "Period": "5s",
+        "Limit": 1
+      },
+      {
+        "Endpoint": "*",
+        "Period": "1s",
+        "Limit": 30
+      }
+    ]
+  },
+  "Cors": {
+    "AllowedOrigins": ["http://localhost:4200"]
+  }
+}

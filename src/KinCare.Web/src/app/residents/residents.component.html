@@ -1,0 +1,78 @@
+<div class="residents-container">
+  <div class="page-header">
+    <h1>Facility Residents</h1>
+    <p class="subtitle">Manage resident profiles and special transportation needs</p>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner></mat-spinner>
+      <p>Loading residents...</p>
+    </div>
+  } @else if (residents.length === 0) {
+    <div class="empty-state">
+      <mat-icon>person</mat-icon>
+      <h2>No residents found</h2>
+      <p>Click the + button below to add your first resident</p>
+    </div>
+  } @else {
+    <div class="residents-grid">
+    @for (resident of pagedResidents; track resident.id) {
+      <mat-card class="resident-card">
+        <mat-card-header>
+          <div class="resident-header">
+            <div class="resident-avatar">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="resident-info">
+              <h2>{{ resident.firstName }} {{ resident.lastName }}</h2>
+              <div class="special-needs-badges">
+                @for (need of getSpecialNeeds(resident); track need) {
+                  <mat-chip [class]="'need-' + need.toLowerCase()">
+                    @if (need === 'Wheelchair') { <mat-icon>accessible</mat-icon> }
+                    @if (need === 'Oxygen') { <mat-icon>air</mat-icon> }
+                    @if (need === 'Stretcher') { <mat-icon>local_hospital</mat-icon> }
+                    @if (need === 'Walker') { <mat-icon>directions_walk</mat-icon> }
+                    @if (need === 'Ambulatory') { <mat-icon>check_circle</mat-icon> }
+                    {{ need }}
+                  </mat-chip>
+                }
+              </div>
+            </div>
+          </div>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="driver-notes">
+            <mat-icon>note</mat-icon>
+            <p>{{ resident.driverNotes }}</p>
+          </div>
+        </mat-card-content>
+        <mat-card-actions>
+          <button mat-raised-button color="primary" (click)="editResident(resident)">
+            <mat-icon>edit</mat-icon>
+            Edit Profile
+          </button>
+          <button mat-button color="accent" (click)="viewPastRides(resident)">
+            <mat-icon>history</mat-icon>
+            Past Rides
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    }
+    </div>
+    @if (residents.length > pageSize) {
+      <mat-paginator
+        [length]="residents.length"
+        [pageSize]="pageSize"
+        [pageIndex]="pageIndex"
+        [pageSizeOptions]="pageSizeOptions"
+        (page)="onPageChange($event)"
+        aria-label="Select page of residents">
+      </mat-paginator>
+    }
+  }
+</div>
+
+<button mat-fab color="accent" class="fab-button" (click)="addResident()" aria-label="Add resident">
+  <mat-icon>person_add</mat-icon>
+</button>

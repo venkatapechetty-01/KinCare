@@ -1,0 +1,476 @@
+<testsuites id="" name="" tests="44" failures="11" skipped="6" errors="1" time="17.323571">
+<testsuite name="auth.spec.ts" timestamp="2026-07-01T20:49:54.347Z" hostname="chromium" tests="25" failures="3" skipped="6" time="23.09" errors="1">
+<testcase name="Auth — page loads › @smoke login page renders form fields" classname="auth.spec.ts" time="0.637">
+</testcase>
+<testcase name="Auth — page loads › @smoke register page renders" classname="auth.spec.ts" time="0.699">
+</testcase>
+<testcase name="Auth — page loads › @smoke forgot-password page renders" classname="auth.spec.ts" time="0.582">
+</testcase>
+<testcase name="Auth — page loads › @smoke reset-password page without token shows invalid link state" classname="auth.spec.ts" time="0.634">
+</testcase>
+<testcase name="Auth — page loads › login page has &quot;Forgot your password?&quot; link" classname="auth.spec.ts" time="0.66">
+</testcase>
+<testcase name="Auth — login validation › submit with empty form is blocked" classname="auth.spec.ts" time="0.545">
+</testcase>
+<testcase name="Auth — login validation › invalid email format shows validation error" classname="auth.spec.ts" time="0.62">
+</testcase>
+<testcase name="Auth — login validation › wrong credentials shows error message" classname="auth.spec.ts" time="0.42">
+</testcase>
+<testcase name="Auth — login validation › unauthenticated user redirected from /dashboard to /login" classname="auth.spec.ts" time="0.367">
+</testcase>
+<testcase name="Auth — login validation › unauthenticated user redirected from /residents to /login" classname="auth.spec.ts" time="0.399">
+</testcase>
+<testcase name="Auth — login validation › unauthenticated user redirected from /billing to /login" classname="auth.spec.ts" time="0.443">
+</testcase>
+<testcase name="Auth — login flow › valid credentials redirect to dashboard" classname="auth.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Auth — login flow › dashboard shows after login" classname="auth.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Auth — login flow › JWT stored in localStorage after login" classname="auth.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Auth — login flow › logout clears token and redirects to /login" classname="auth.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Auth — registration › register new org via UI redirects to dashboard" classname="auth.spec.ts" time="15.681">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|auth-Auth-—-registration-r-5ebc4-a-UI-redirects-to-dashboard-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|auth-Auth-—-registration-r-5ebc4-a-UI-redirects-to-dashboard-chromium/error-context.md]]
+]]>
+</system-out>
+<error message="page.waitForURL: Timeout 15000ms exceeded." type="TimeoutError">
+<![CDATA[  [chromium] › auth.spec.ts:132:7 › Auth — registration › register new org via UI redirects to dashboard 
+
+    TimeoutError: page.waitForURL: Timeout 15000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/dashboard" until "load"
+    ============================================================
+
+      147 |
+      148 |     await page.click('button[type="submit"]');
+    > 149 |     await page.waitForURL('**/dashboard', { timeout: 15000 });
+          |                ^
+      150 |     await expect(page).toHaveURL(/\/dashboard/);
+      151 |   });
+      152 |
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/auth.spec.ts:149:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../test-results/auth-Auth-—-registration-r-5ebc4-a-UI-redirects-to-dashboard-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../test-results/auth-Auth-—-registration-r-5ebc4-a-UI-redirects-to-dashboard-chromium/error-context.md
+]]>
+</error>
+</testcase>
+<testcase name="Auth — registration › register with duplicate email shows error" classname="auth.spec.ts" time="0.137">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|auth-Auth-—-registration-r-87348-duplicate-email-shows-error-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|auth-Auth-—-registration-r-87348-duplicate-email-shows-error-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › auth.spec.ts:153:7 › Auth — registration › register with duplicate email shows error 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/auth.spec.ts:155:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../test-results/auth-Auth-—-registration-r-87348-duplicate-email-shows-error-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../test-results/auth-Auth-—-registration-r-87348-duplicate-email-shows-error-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Auth — password reset › forgot-password always shows success (anti-enumeration)" classname="auth.spec.ts" time="0.436">
+</testcase>
+<testcase name="Auth — password reset › API request-password-reset returns 200 for unknown email" classname="auth.spec.ts" time="0.016">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|auth-Auth-—-password-reset-5aa7d-turns-200-for-unknown-email-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toBe(expected) // Object.is equality" type="expect.toBe">
+<![CDATA[  [chromium] › auth.spec.ts:185:7 › Auth — password reset › API request-password-reset returns 200 for unknown email 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      187 |       data: { email: 'nobody@kincare-test.invalid' },
+      188 |     });
+    > 189 |     expect(res.status()).toBe(200);
+          |                          ^
+      190 |     const body = await res.json();
+      191 |     expect(body.message).toBeTruthy();
+      192 |   });
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/auth.spec.ts:189:26
+
+    Error Context: ../test-results/auth-Auth-—-password-reset-5aa7d-turns-200-for-unknown-email-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Auth — password reset › API reset-password with invalid token returns 400" classname="auth.spec.ts" time="0.016">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|auth-Auth-—-password-reset-f0bf0-h-invalid-token-returns-400-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toBe(expected) // Object.is equality" type="expect.toBe">
+<![CDATA[  [chromium] › auth.spec.ts:194:7 › Auth — password reset › API reset-password with invalid token returns 400 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 404
+
+      196 |       data: { token: 'invalid-token-xyz', newPassword: 'NewPassw0rd!' },
+      197 |     });
+    > 198 |     expect(res.status()).toBe(400);
+          |                          ^
+      199 |   });
+      200 |
+      201 |   test('reset-password page with valid ?token param shows form', async ({ page }) => {
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/auth.spec.ts:198:26
+
+    Error Context: ../test-results/auth-Auth-—-password-reset-f0bf0-h-invalid-token-returns-400-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Auth — password reset › reset-password page with valid ?token param shows form" classname="auth.spec.ts" time="0.385">
+</testcase>
+<testcase name="Auth — API contract › POST /api/auth/login returns accessToken, refreshToken, role" classname="auth.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Auth — API contract › POST /api/auth/refresh rotates token" classname="auth.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Auth — API contract › protected endpoint returns 401 without token" classname="auth.spec.ts" time="0.018">
+</testcase>
+<testcase name="Auth — API contract › protected endpoint returns 401 with malformed token" classname="auth.spec.ts" time="0.014">
+</testcase>
+</testsuite>
+<testsuite name="health.spec.ts" timestamp="2026-07-01T20:49:54.347Z" hostname="chromium" tests="6" failures="1" skipped="0" time="1.21" errors="0">
+<testcase name="Health &amp; Infrastructure › @smoke API health endpoint returns 200" classname="health.spec.ts" time="0.037">
+</testcase>
+<testcase name="Health &amp; Infrastructure › @smoke Angular app loads at /" classname="health.spec.ts" time="0.421">
+</testcase>
+<testcase name="Health &amp; Infrastructure › @smoke / redirects to /login" classname="health.spec.ts" time="0.36">
+</testcase>
+<testcase name="Health &amp; Infrastructure › @smoke unknown route redirects to /login" classname="health.spec.ts" time="0.375">
+</testcase>
+<testcase name="Health &amp; Infrastructure › API swagger docs accessible in development" classname="health.spec.ts" time="0.007">
+</testcase>
+<testcase name="Health &amp; Infrastructure › API returns JSON for error responses (not HTML)" classname="health.spec.ts" time="0.01">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|health-Health-Infrastructu-154d9-r-error-responses-not-HTML--chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toContain(expected) // indexOf" type="expect.toContain">
+<![CDATA[  [chromium] › health.spec.ts:32:7 › Health & Infrastructure › API returns JSON for error responses (not HTML) 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "application/json"
+    Received string:    ""
+
+      33 |     const res = await request.get(`${API_URL}/api/rides/today`);
+      34 |     const contentType = res.headers()['content-type'] ?? '';
+    > 35 |     expect(contentType).toContain('application/json');
+         |                         ^
+      36 |   });
+      37 | });
+      38 |
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/health.spec.ts:35:25
+
+    Error Context: ../test-results/health-Health-Infrastructu-154d9-r-error-responses-not-HTML--chromium/error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="security.spec.ts" timestamp="2026-07-01T20:49:54.347Z" hostname="chromium" tests="13" failures="7" skipped="0" time="0.169" errors="0">
+<testcase name="Security — rate limiting › POST /api/auth/login rate-limited at 5 attempts/min" classname="security.spec.ts" time="0.029">
+</testcase>
+<testcase name="Security — input validation › resident firstName over 100 chars returns 400" classname="security.spec.ts" time="0.019">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-input--0f32d--over-100-chars-returns-400-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:30:7 › Security — input validation › resident firstName over 100 chars returns 400 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:26:29
+
+    Error Context: ../test-results/security-Security-—-input--0f32d--over-100-chars-returns-400-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — input validation › vendor name over 200 chars returns 400" classname="security.spec.ts" time="0.011">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-input--6492f--over-200-chars-returns-400-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:45:7 › Security — input validation › vendor name over 200 chars returns 400 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:26:29
+
+    Error Context: ../test-results/security-Security-—-input--6492f--over-200-chars-returns-400-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — input validation › ride pickupAddress over 500 chars returns 400" classname="security.spec.ts" time="0.016">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-input--97eb0--over-500-chars-returns-400-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:59:7 › Security — input validation › ride pickupAddress over 500 chars returns 400 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:26:29
+
+    Error Context: ../test-results/security-Security-—-input--97eb0--over-500-chars-returns-400-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — input validation › POST /api/auth/reset-password with weak password returns 400" classname="security.spec.ts" time="0.004">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-input--bb412-h-weak-password-returns-400-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:85:7 › Security — input validation › POST /api/auth/reset-password with weak password returns 400 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:26:29
+
+    Error Context: ../test-results/security-Security-—-input--bb412-h-weak-password-returns-400-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — input validation › login with empty body returns 400" classname="security.spec.ts" time="0.017">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-input--d6583-with-empty-body-returns-400-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:92:7 › Security — input validation › login with empty body returns 400 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:26:29
+
+    Error Context: ../test-results/security-Security-—-input--d6583-with-empty-body-returns-400-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — tenant isolation › org A cannot read org B rides via direct ride ID" classname="security.spec.ts" time="0.015">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-tenant-a9251--B-rides-via-direct-ride-ID-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:101:7 › Security — tenant isolation › org A cannot read org B rides via direct ride ID 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:102:37
+
+    Error Context: ../test-results/security-Security-—-tenant-a9251--B-rides-via-direct-ride-ID-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — tenant isolation › org B residents list does not leak org A residents" classname="security.spec.ts" time="0.015">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|security-Security-—-tenant-cbb06-es-not-leak-org-A-residents-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m." type="expect.toBeTruthy">
+<![CDATA[  [chromium] › security.spec.ts:137:7 › Security — tenant isolation › org B residents list does not leak org A residents 
+
+    Error: Register failed: 429 API calls quota exceeded! maximum admitted 3 per 1m.
+
+    expect(received).toBeTruthy()
+
+    Received: false
+
+       at helpers/auth.helper.ts:75
+
+      73 |
+      74 |   const res = await request.post(`${API_URL}/api/onboarding/register`, { data: payload });
+    > 75 |   expect(res.ok(), `Register failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+         |                                                                            ^
+      76 |   const body = await res.json();
+      77 |   return { accessToken: body.accessToken, email };
+      78 | }
+        at registerNewOrg (/Users/jvincent1/Downloads/KinCare/e2e/tests/helpers/auth.helper.ts:75:76)
+        at /Users/jvincent1/Downloads/KinCare/e2e/tests/security.spec.ts:138:37
+
+    Error Context: ../test-results/security-Security-—-tenant-cbb06-es-not-leak-org-A-residents-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Security — response headers › API responses have no stack traces in errors" classname="security.spec.ts" time="0.013">
+</testcase>
+<testcase name="Security — response headers › health endpoint is public" classname="security.spec.ts" time="0.013">
+</testcase>
+<testcase name="Security — response headers › tracking endpoint is public for valid token" classname="security.spec.ts" time="0.009">
+</testcase>
+<testcase name="Security — webhook protection › POST /webhook/twilio without signature returns 403" classname="security.spec.ts" time="0.004">
+</testcase>
+<testcase name="Security — webhook protection › POST /webhook/broker without signature returns 401" classname="security.spec.ts" time="0.004">
+</testcase>
+</testsuite>
+</testsuites>

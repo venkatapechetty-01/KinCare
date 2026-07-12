@@ -1,0 +1,223 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// ENHANCED HIGH-CONTRAST PALETTE FOR ELDERLY USERS
+// Brighter, bolder colors with excellent contrast ratios
+$kincare-primary: mat.define-palette((
+  50: #e8eaf6,
+  100: #c5cae9,
+  200: #9fa8da,
+  300: #7986cb,
+  400: #5c6bc0,
+  500: #3f51b5,  // Deeper, more visible blue
+  600: #3949ab,
+  700: #303f9f,
+  800: #283593,
+  900: #1a237e,
+  A100: #8c9eff,
+  A200: #536dfe,
+  A400: #3d5afe,
+  A700: #304ffe,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: white,
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: white,
+    A400: white,
+    A700: white,
+  )
+));
+
+$kincare-accent: mat.define-palette(mat.$teal-palette, 600, 400, 800);  // Deeper teal for better visibility
+$kincare-warn: mat.define-palette(mat.$red-palette, 700);  // Deeper red for critical alerts
+
+$kincare-theme: mat.define-light-theme((
+  color: (
+    primary: $kincare-primary,
+    accent: $kincare-accent,
+    warn: $kincare-warn,
+  ),
+  typography: mat.define-typography-config(
+    $font-family: 'Roboto, "Helvetica Neue", sans-serif',
+    // Increased base font sizes for elderly users
+    $headline-1: mat.define-typography-level(112px, 112px, 700),
+    $headline-2: mat.define-typography-level(56px, 56px, 700),
+    $headline-3: mat.define-typography-level(45px, 48px, 700),
+    $headline-4: mat.define-typography-level(34px, 40px, 700),
+    $headline-5: mat.define-typography-level(28px, 32px, 700),  // Larger headings
+    $headline-6: mat.define-typography-level(24px, 28px, 700),
+    $subtitle-1: mat.define-typography-level(20px, 28px, 600),  // Larger subtitles
+    $subtitle-2: mat.define-typography-level(18px, 24px, 600),
+    $body-1: mat.define-typography-level(20px, 28px, 400),      // Larger body text
+    $body-2: mat.define-typography-level(18px, 26px, 400),
+    $button: mat.define-typography-level(18px, 18px, 700),      // Larger button text
+    $caption: mat.define-typography-level(16px, 20px, 400),     // Larger captions
+  ),
+  density: -2,  // More spacing for easier touch targets
+));
+
+@include mat.all-component-themes($kincare-theme);
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  background-color: #ffffff;  // Pure white background for maximum brightness
+  font-size: 18px;  // Increased base font size
+  line-height: 1.6;  // Better line spacing
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #000000;  // Pure black text for maximum contrast
+  font-weight: 500;  // Slightly bolder default weight
+}
+
+// ENHANCED BUTTONS - Larger and more visible
+.mat-mdc-raised-button,
+.mat-mdc-flat-button,
+.mat-mdc-unelevated-button {
+  border-radius: 12px !important;
+  text-transform: none !important;
+  letter-spacing: 0.5px !important;
+  font-weight: 700 !important;
+  font-size: 20px !important;  // Larger button text
+  padding: 16px 32px !important;  // Larger click targets
+  min-height: 56px !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;  // Stronger shadow for depth
+}
+
+.mat-mdc-outlined-button,
+.mat-mdc-stroked-button {
+  border-radius: 12px !important;
+  text-transform: none !important;
+  letter-spacing: 0.5px !important;
+  font-weight: 700 !important;
+  font-size: 20px !important;
+  padding: 16px 32px !important;
+  min-height: 56px !important;
+  border-width: 3px !important;  // Thicker borders for visibility
+}
+
+.mat-mdc-icon-button {
+  width: 56px !important;  // Larger icon buttons
+  height: 56px !important;
+  padding: 8px !important;
+
+  mat-icon {
+    font-size: 32px !important;  // Larger icons
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+
+.mat-mdc-fab {
+  width: 80px !important;  // Extra large FAB
+  height: 80px !important;
+
+  mat-icon {
+    font-size: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+// Form field improvements - Larger inputs
+.mat-mdc-form-field {
+  font-size: 20px !important;
+
+  .mat-mdc-text-field-wrapper {
+    border-radius: 12px !important;
+  }
+
+  .mat-mdc-form-field-infix {
+    padding: 20px 0 !important;
+    min-height: 60px !important;
+  }
+
+  input, textarea, select {
+    font-size: 20px !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+  }
+
+  label {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+  }
+}
+
+// Enhanced chips for status badges
+.mat-mdc-chip {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  padding: 12px 20px !important;
+  min-height: 44px !important;
+  border-radius: 8px !important;
+  border: 2px solid transparent !important;
+}
+
+// Cards with stronger shadows
+.mat-mdc-card {
+  border-radius: 16px !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
+  border: 2px solid #e0e0e0 !important;
+}
+
+// Toolbar — height controlled per-component, not globally
+.mat-toolbar {
+  padding: 0 12px !important;
+}
+
+// Utility classes
+.text-center {
+  text-align: center;
+}
+
+.mt-1 { margin-top: 0.75rem; }
+.mt-2 { margin-top: 1.25rem; }
+.mt-3 { margin-top: 2rem; }
+.mb-1 { margin-bottom: 0.75rem; }
+.mb-2 { margin-bottom: 1.25rem; }
+.mb-3 { margin-bottom: 2rem; }
+
+// Larger, more visible scrollbars
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 8px;
+  border: 3px solid #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
+
+// High contrast focus indicators for accessibility
+*:focus {
+  outline: 4px solid #3f51b5 !important;
+  outline-offset: 4px !important;
+}

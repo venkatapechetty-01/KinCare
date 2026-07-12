@@ -1,0 +1,156 @@
+<div class="branch-detail-container">
+  <div class="back-nav">
+    <button mat-button routerLink="/branches">
+      <mat-icon>arrow_back</mat-icon>
+      All Branches
+    </button>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner></mat-spinner>
+    </div>
+  } @else if (facility) {
+    <div class="facility-header">
+      <div class="facility-icon">
+        <mat-icon>location_city</mat-icon>
+      </div>
+      <div class="facility-info">
+        <h1>{{ facility.name }}</h1>
+        <p class="address">
+          <mat-icon>place</mat-icon>
+          {{ facility.address }}
+        </p>
+        <div class="badges">
+          <span class="rides-badge">
+            <mat-icon>directions_car</mat-icon>
+            {{ facility.activeRides }} active rides
+          </span>
+          @if (facility.uberHealthEnabled) {
+            <span class="uber-badge">
+              <mat-icon>directions_car</mat-icon>
+              Uber Health enabled
+            </span>
+          }
+        </div>
+      </div>
+      <button mat-raised-button color="accent" (click)="bookRide()">
+        <mat-icon>add_circle</mat-icon>
+        Book a Ride
+      </button>
+    </div>
+
+    <mat-tab-group>
+      <mat-tab label="Residents">
+
+        <!-- Add / Edit form panel -->
+        @if (showResidentForm) {
+          <div class="resident-form-panel">
+            <h3>{{ editingResident ? 'Edit Resident' : 'Add Resident' }}</h3>
+            <form [formGroup]="residentForm" (ngSubmit)="saveResident()">
+              <div class="form-row">
+                <mat-form-field appearance="outline">
+                  <mat-label>First Name</mat-label>
+                  <input matInput formControlName="firstName" />
+                  @if (residentForm.get('firstName')?.hasError('required') && residentForm.get('firstName')?.touched) {
+                    <mat-error>Required</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Last Name</mat-label>
+                  <input matInput formControlName="lastName" />
+                  @if (residentForm.get('lastName')?.hasError('required') && residentForm.get('lastName')?.touched) {
+                    <mat-error>Required</mat-error>
+                  }
+                </mat-form-field>
+              </div>
+
+              <div class="needs-row">
+                <span class="needs-label">Special Needs:</span>
+                <mat-checkbox formControlName="needsWheelchair">Wheelchair</mat-checkbox>
+                <mat-checkbox formControlName="needsOxygen">Oxygen</mat-checkbox>
+                <mat-checkbox formControlName="needsStretcher">Stretcher</mat-checkbox>
+                <mat-checkbox formControlName="needsWalker">Walker</mat-checkbox>
+              </div>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Driver Notes (optional)</mat-label>
+                <textarea matInput formControlName="driverNotes" rows="2"
+                          placeholder="Any notes for the driver..."></textarea>
+              </mat-form-field>
+
+              <div class="form-actions">
+                <button mat-button type="button" (click)="cancelForm()">Cancel</button>
+                <button mat-raised-button color="primary" type="submit"
+                        [disabled]="residentForm.invalid || saving">
+                  @if (saving) { <mat-spinner diameter="18"></mat-spinner> }
+                  @else { {{ editingResident ? 'Save Changes' : 'Add Resident' }} }
+                </button>
+              </div>
+            </form>
+          </div>
+          <mat-divider></mat-divider>
+        }
+
+        <!-- Residents list header -->
+        <div class="residents-tab-header">
+          <span class="resident-count">{{ residents.length }} resident{{ residents.length !== 1 ? 's' : '' }}</span>
+          <button mat-raised-button color="primary" (click)="openAddForm()" [disabled]="showResidentForm">
+            <mat-icon>person_add</mat-icon>
+            Add Resident
+          </button>
+        </div>
+
+        @if (residentsLoading) {
+          <div class="loading-state"><mat-spinner></mat-spinner></div>
+        } @else if (residents.length === 0) {
+          <div class="empty-state">
+            <mat-icon>person</mat-icon>
+            <p>No residents in this branch yet</p>
+            <button mat-raised-button color="primary" (click)="openAddForm()">
+              <mat-icon>person_add</mat-icon>
+              Add First Resident
+            </button>
+          </div>
+        } @else {
+          <div class="residents-list">
+            @for (r of residents; track r.id) {
+              <mat-card class="resident-row" [class.editing]="editingResident?.id === r.id">
+                <div class="resident-main">
+                  <div class="resident-avatar">
+                    <mat-icon>person</mat-icon>
+                  </div>
+                  <div class="resident-details">
+                    <span class="resident-name">{{ r.firstName }} {{ r.lastName }}</span>
+                    <div class="needs-chips">
+                      @for (need of getNeeds(r); track need) {
+                        <mat-chip [class]="'need-' + need.toLowerCase()">{{ need }}</mat-chip>
+                      }
+                    </div>
+                    @if (r.driverNotes) {
+                      <p class="notes">
+                        <mat-icon>note</mat-icon>
+                        {{ r.driverNotes }}
+                      </p>
+                    }
+                  </div>
+                  <div class="resident-actions">
+                    <button mat-icon-button color="primary" (click)="openEditForm(r)"
+                            matTooltip="Edit resident" [disabled]="showResidentForm">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteResident(r)"
+                            matTooltip="Remove resident" [disabled]="showResidentForm">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </mat-card>
+            }
+          </div>
+        }
+      </mat-tab>
+    </mat-tab-group>
+  }
+</div>

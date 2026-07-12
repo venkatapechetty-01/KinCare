@@ -1,0 +1,115 @@
+<div class="live-map-container">
+  <div class="map-header">
+    <div class="header-left">
+      <mat-icon class="header-icon">satellite_alt</mat-icon>
+      <div>
+        <h1>Live Operations Map</h1>
+        <p class="header-sub">
+          @if (focusedRideId) {
+            Tracking single ride · real-time GPS updates
+          } @else {
+            Active rides with GPS tracking across all branches
+          }
+        </p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="active-count" [class.zero]="rides.length === 0">
+        <mat-icon>gps_fixed</mat-icon>
+        {{ rides.length }} active {{ rides.length === 1 ? 'ride' : 'rides' }}
+      </span>
+      <button mat-stroked-button (click)="loadRides()">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Loading active rides...</p>
+    </div>
+  } @else if (rides.length === 0) {
+    <div class="empty-state">
+      <mat-icon>location_off</mat-icon>
+      <h2>No active GPS rides</h2>
+      <p>Live tracking only appears for Smart-tier SMS vendors currently en route.</p>
+    </div>
+  } @else {
+    <div class="map-layout">
+
+      <!-- Left: ride list -->
+      <div class="ride-list">
+        @for (ride of rides; track ride.id) {
+          <div class="ride-card" [class.selected]="selectedRide?.id === ride.id" (click)="selectRide(ride)">
+            <div class="ride-card-top">
+              <mat-icon [style.color]="getStatusColor(ride.status)">circle</mat-icon>
+              <span class="resident-name">{{ ride.residentName }}</span>
+              @if (isOrgAdmin) {
+                <span class="facility-tag">{{ ride.facilityName }}</span>
+              }
+            </div>
+            <div class="ride-card-meta">
+              <mat-icon>{{ getChannelIcon(ride.dispatchChannel) }}</mat-icon>
+              <span>{{ ride.vendorName ?? 'Unknown vendor' }}</span>
+            </div>
+            <div class="ride-card-status">
+              <span class="status-chip" [style.background]="getStatusColor(ride.status)">{{ ride.status }}</span>
+              <span class="last-seen">
+                <mat-icon>access_time</mat-icon>
+                {{ getLastSeenLabel(ride.lastLocationAt) }}
+              </span>
+            </div>
+            <div class="ride-card-addr">
+              <mat-icon>my_location</mat-icon> {{ ride.pickupAddress }}
+            </div>
+            <div class="ride-card-addr">
+              <mat-icon>place</mat-icon> {{ ride.destinationAddress }}
+            </div>
+            <button mat-stroked-button class="detail-btn" (click)="$event.stopPropagation(); goToRide(ride.id)">
+              <mat-icon>open_in_new</mat-icon> View Ride
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Right: map -->
+      <div class="map-panel">
+        <div class="map-info-bar">
+          @if (selectedRide) {
+            <div class="map-info-left">
+              <mat-icon [style.color]="getStatusColor(selectedRide.status)">person_pin_circle</mat-icon>
+              <span><strong>{{ selectedRide.residentName }}</strong> · {{ selectedRide.vendorName ?? 'Unknown' }}</span>
+            </div>
+            <div class="map-info-right">
+              <mat-icon>access_time</mat-icon>
+              <span>{{ getLastSeenLabel(selectedRide.lastLocationAt) }}</span>
+              <a [href]="'https://www.google.com/maps?q=' + selectedRide.lat + ',' + selectedRide.lng"
+                 target="_blank" rel="noopener" mat-stroked-button class="gmaps-btn">
+                <mat-icon>open_in_new</mat-icon> Open in Maps
+              </a>
+            </div>
+          } @else {
+            <div class="map-info-left">
+              <mat-icon>map</mat-icon>
+              <span>Select a ride to focus</span>
+            </div>
+          }
+        </div>
+
+        <!-- Google Maps canvas — JS API renders here -->
+        <div #mapCanvas class="google-map-canvas"></div>
+
+        @if (selectedRide) {
+          <div class="map-coords">
+            <mat-icon>location_on</mat-icon>
+            {{ selectedRide.lat | number:'1.5-5' }}, {{ selectedRide.lng | number:'1.5-5' }}
+            <span class="coord-sep">·</span>
+            Pickup: {{ selectedRide.pickupTime | date:'shortTime' }}
+          </div>
+        }
+      </div>
+
+    </div>
+  }
+</div>

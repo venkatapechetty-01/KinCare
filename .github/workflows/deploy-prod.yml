@@ -1,0 +1,337 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository }}/api
+
+jobs:
+  # ── 1. Full test gate ────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Full Test Suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kincare_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: src/KinCare.Web/package-lock.json
+
+      - name: Restore & Build API
+        run: dotnet build --configuration Release
+
+      - name: API Unit Tests
+        run: dotnet test src/KinCare.Tests --no-build --configuration Release
+
+      - name: API Integration Tests
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=kincare_test;Username=postgres;Password=postgres"
+        run: dotnet test tests/KinCare.API.IntegrationTests --no-build --configuration Release
+
+      - name: Install Web dependencies
+        working-directory: src/KinCare.Web
+        run: npm ci
+
+      - name: Web Unit Tests
+        working-directory: src/KinCare.Web
+        run: npm run test -- --watch=false --browsers=ChromeHeadless
+
+      - name: Build Web Production
+        working-directory: src/KinCare.Web
+        run: npm run build -- --configuration production
+
+  # ── 2. Build & push API Docker image ────────────────────────────────────────
+  push-api-image:
+    name: Push Production API Image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "version=prod-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/KinCare.API/Dockerfile
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.API_IMAGE }}:latest
+
+  # ── 3. DB Migration (production) ────────────────────────────────────────────
+  # Critical rules enforced here:
+  #   - Migrations run BEFORE the new API image is deployed (old API stays live)
+  #   - All migrations must be backward-compatible with the currently running API
+  #     (additive only: add columns as nullable, rename in two phases)
+  #   - A failed migration aborts the deploy — the old API keeps running unaffected
+  #   - Migration output is printed as an audit log in the GitHub Actions run
+  migrate-prod:
+    name: Migrate Production Database
+    needs: push-api-image
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: List pending migrations (audit log)
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.PROD_DB_CONNECTION_STRING }}
+        run: |
+          echo "=== Pending migrations ==="
+          dotnet ef migrations list \
+            --project src/KinCare.API \
+            --connection "${{ secrets.PROD_DB_CONNECTION_STRING }}" \
+            --no-build
+          echo "=========================="
+
+      - name: Apply migrations
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.PROD_DB_CONNECTION_STRING }}
+        run: |
+          dotnet ef database update \
+            --project src/KinCare.API \
+            --connection "${{ secrets.PROD_DB_CONNECTION_STRING }}" \
+            --no-build
+
+  # ── 4. Deploy API to Railway (production) ───────────────────────────────────
+  deploy-api-prod:
+    name: Deploy API to Railway (Production)
+    needs: migrate-prod
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PROD_API_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway production service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PROD_TOKEN }}
+        run: |
+          railway up \
+            --service kincare-api \
+            --environment production \
+            --detach
+
+      - name: Wait for Railway health check
+        run: |
+          echo "Waiting for production API to become healthy..."
+          for i in $(seq 1 18); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PROD_API_URL }}/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "API healthy after ${i}x5s"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS — retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::API did not become healthy within 90s — triggering rollback"
+          exit 1
+
+  # ── 5. Deploy Angular to Vercel (production) ─────────────────────────────────
+  deploy-web-prod:
+    name: Deploy Web to Vercel (Production)
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: src/KinCare.Web/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Install dependencies
+        working-directory: src/KinCare.Web
+        run: npm ci
+
+      - name: Inject production environment values
+        working-directory: src/KinCare.Web/src/environments
+        env:
+          KINCARE_API_URL: ${{ vars.PROD_API_URL }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          FCM_VAPID_KEY: ${{ secrets.FCM_VAPID_KEY }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        run: |
+          sed -i "s|KINCARE_API_URL_PLACEHOLDER|${KINCARE_API_URL}|g" environment.production.ts
+          sed -i "s|GOOGLE_MAPS_API_KEY_PLACEHOLDER|${GOOGLE_MAPS_API_KEY}|g" environment.production.ts
+          sed -i "s|FCM_VAPID_KEY_PLACEHOLDER|${FCM_VAPID_KEY}|g" environment.production.ts
+          sed -i "s|FIREBASE_API_KEY_PLACEHOLDER|${FIREBASE_API_KEY}|g" environment.production.ts
+          sed -i "s|FIREBASE_AUTH_DOMAIN_PLACEHOLDER|${FIREBASE_AUTH_DOMAIN}|g" environment.production.ts
+          sed -i "s|FIREBASE_PROJECT_ID_PLACEHOLDER|${FIREBASE_PROJECT_ID}|g" environment.production.ts
+          sed -i "s|FIREBASE_STORAGE_BUCKET_PLACEHOLDER|${FIREBASE_STORAGE_BUCKET}|g" environment.production.ts
+          sed -i "s|FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER|${FIREBASE_MESSAGING_SENDER_ID}|g" environment.production.ts
+          sed -i "s|FIREBASE_APP_ID_PLACEHOLDER|${FIREBASE_APP_ID}|g" environment.production.ts
+
+      - name: Build Angular for production
+        working-directory: src/KinCare.Web
+        run: npm run build -- --configuration production
+
+      - name: Deploy to Vercel (production)
+        working-directory: src/KinCare.Web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel deploy dist/kin-care.web/browser \
+            --token "$VERCEL_TOKEN" \
+            --prod \
+            --yes
+
+  # ── 6. E2E smoke tests against production ────────────────────────────────────
+  e2e-smoke-prod:
+    name: E2E Smoke Tests (Production)
+    needs: [deploy-api-prod, deploy-web-prod]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        working-directory: e2e
+        env:
+          BASE_URL: ${{ vars.PROD_URL }}
+          API_URL: ${{ vars.PROD_API_URL }}
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          SMOKE_ONLY: "true"
+        run: npx playwright test --grep @smoke
+
+      - name: Upload E2E Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-prod
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+
+  # ── 7. Rollback on smoke test failure ────────────────────────────────────────
+  rollback-on-failure:
+    name: Rollback on Smoke Test Failure
+    needs: [e2e-smoke-prod, push-api-image]
+    if: failure()
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Rollback API to previous deployment
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PROD_TOKEN }}
+        run: |
+          echo "Smoke tests failed — rolling back Railway deployment..."
+          railway rollback \
+            --service kincare-api \
+            --environment production
+          echo "Rollback complete."
+
+      - name: Notify on failure
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": ":rotating_light: *KinCare production deploy failed and was rolled back*\nCommit: ${{ github.sha }}\nActor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

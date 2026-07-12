@@ -1,0 +1,288 @@
+.live-map-container {
+  height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.5rem;
+  overflow: hidden;
+
+  .map-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .header-icon {
+        font-size: 2rem;
+        width: 2rem;
+        height: 2rem;
+        color: #1565c0;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #000;
+        margin: 0;
+      }
+
+      .header-sub {
+        font-size: 0.85rem;
+        color: #777;
+        margin: 0;
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .active-count {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 0.35rem 0.9rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+
+        mat-icon {
+          font-size: 1rem;
+          width: 1rem;
+          height: 1rem;
+          animation: pulse 2s infinite;
+        }
+
+        &.zero {
+          background: #f5f5f5;
+          color: #999;
+          mat-icon { animation: none; }
+        }
+      }
+    }
+  }
+
+  .loading-state,
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: #999;
+
+    mat-icon { font-size: 3.5rem; width: 3.5rem; height: 3.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 700; color: #444; margin: 0; }
+    p { font-size: 0.95rem; color: #888; margin: 0; text-align: center; max-width: 360px; }
+  }
+
+  .map-layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1rem;
+    overflow: hidden;
+    min-height: 0;
+
+    .ride-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding-right: 0.25rem;
+
+      .ride-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1rem;
+        border: 2px solid #e0e0e0;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+
+        &:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        &.selected { border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,0.15); }
+
+        .ride-card-top {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 0.5rem;
+
+          mat-icon { font-size: 0.9rem; width: 0.9rem; height: 0.9rem; flex-shrink: 0; }
+
+          .resident-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #000;
+            flex: 1;
+          }
+
+          .facility-tag {
+            font-size: 0.72rem;
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+          }
+        }
+
+        .ride-card-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          font-size: 0.85rem;
+          color: #555;
+          margin-bottom: 0.5rem;
+
+          mat-icon { font-size: 1rem; width: 1rem; height: 1rem; color: #888; }
+        }
+
+        .ride-card-status {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.6rem;
+
+          .status-chip {
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 10px;
+          }
+
+          .last-seen {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.78rem;
+            color: #777;
+
+            mat-icon { font-size: 0.85rem; width: 0.85rem; height: 0.85rem; }
+          }
+        }
+
+        .ride-card-addr {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.35rem;
+          font-size: 0.78rem;
+          color: #666;
+          margin-bottom: 0.25rem;
+
+          mat-icon { font-size: 0.9rem; width: 0.9rem; height: 0.9rem; flex-shrink: 0; margin-top: 1px; }
+        }
+
+        .detail-btn {
+          width: 100%;
+          margin-top: 0.6rem;
+          font-size: 0.85rem !important;
+        }
+      }
+    }
+
+    .map-panel {
+      display: flex;
+      flex-direction: column;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #e0e0e0;
+      background: #f5f5f5;
+
+      .map-info-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.6rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+
+        .map-info-left {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.9rem;
+
+          mat-icon { font-size: 1.25rem; width: 1.25rem; height: 1.25rem; }
+        }
+
+        .map-info-right {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.85rem;
+          color: #555;
+
+          mat-icon { font-size: 1rem; width: 1rem; height: 1rem; color: #888; }
+
+          .gmaps-btn {
+            font-size: 0.8rem !important;
+            text-decoration: none;
+          }
+        }
+      }
+
+      // Google Maps JS canvas — fills all remaining height
+      .google-map-canvas {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+
+        // Override Google's default inline height when map loads
+        > div { height: 100% !important; }
+      }
+
+      .map-coords {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 1rem;
+        font-size: 0.78rem;
+        color: #777;
+        background: #fff;
+        border-top: 1px solid #e0e0e0;
+        flex-shrink: 0;
+
+        mat-icon { font-size: 0.9rem; width: 0.9rem; height: 0.9rem; color: #c62828; }
+
+        .coord-sep { color: #ccc; margin: 0 0.25rem; }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (max-width: 900px) {
+  .live-map-container {
+    height: auto;
+    overflow: auto;
+
+    .map-layout {
+      grid-template-columns: 1fr;
+      overflow: visible;
+
+      .map-panel {
+        height: 420px;
+        order: -1;
+      }
+    }
+  }
+}

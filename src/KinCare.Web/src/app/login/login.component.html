@@ -1,0 +1,69 @@
+<div class="login-page">
+  <div class="login-container">
+    <div class="logo-section">
+      <div class="logo">KinCare</div>
+      <p class="tagline">Senior Living Transport Management</p>
+    </div>
+
+    <div class="login-card">
+      <h1>Welcome Back</h1>
+      <p class="subtitle">Sign in to your account</p>
+
+      @if (error) {
+        <div class="alert alert-error">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ error }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email Address</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+          @if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
+            <mat-error>Please enter a valid email address</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Password</mat-label>
+          <input matInput [type]="hidePassword ? 'password' : 'text'"
+                 formControlName="password" autocomplete="current-password" />
+          <button mat-icon-button matIconSuffix type="button"
+                  (click)="hidePassword = !hidePassword"
+                  tabindex="-1">
+            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+            <mat-error>Password is required</mat-error>
+          }
+        </mat-form-field>
+
+        <button mat-flat-button color="primary" type="submit"
+                [disabled]="form.invalid || loading" class="sign-in-btn">
+          @if (loading) {
+            <mat-spinner diameter="20"></mat-spinner>
+          } @else {
+            Sign In
+          }
+        </button>
+
+        <div class="forgot-link">
+          <a routerLink="/forgot-password">Forgot your password?</a>
+        </div>
+      </form>
+
+      <div class="divider">
+        <span>New to KinCare?</span>
+      </div>
+
+      <a mat-stroked-button routerLink="/register" class="register-btn">
+        Create an Account
+      </a>
+    </div>
+
+    <p class="footer-text">
+      © 2024 KinCare. Streamlining senior care transportation.
+    </p>
+  </div>
+</div>

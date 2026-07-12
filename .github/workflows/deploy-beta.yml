@@ -1,0 +1,279 @@
+name: Deploy to Beta
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository }}/api
+
+jobs:
+  # ── 1. Full test gate ────────────────────────────────────────────────────────
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kincare_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore & Build API
+        run: dotnet build --configuration Release
+
+      - name: Unit Tests
+        run: dotnet test src/KinCare.Tests --no-build --configuration Release
+
+      - name: Integration Tests
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=kincare_test;Username=postgres;Password=postgres"
+        run: dotnet test tests/KinCare.API.IntegrationTests --no-build --configuration Release
+
+  # ── 2. Build & push API Docker image ────────────────────────────────────────
+  build-api:
+    name: Build & Push API Image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "version=beta-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/KinCare.API/Dockerfile
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.API_IMAGE }}:beta-latest
+
+  # ── 3. DB Migration (beta) ───────────────────────────────────────────────────
+  # Runs BEFORE the new API image goes live.
+  # All EF Core migrations are additive (no destructive column drops without
+  # a two-phase migration — see docs/db-migration-guide.md).
+  migrate-beta:
+    name: Migrate Beta Database
+    needs: build-api
+    runs-on: ubuntu-latest
+    environment:
+      name: beta
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: List pending migrations (audit log)
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.BETA_DB_CONNECTION_STRING }}
+        run: |
+          dotnet ef migrations list \
+            --project src/KinCare.API \
+            --connection "${{ secrets.BETA_DB_CONNECTION_STRING }}" \
+            --no-build
+
+      - name: Apply migrations
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.BETA_DB_CONNECTION_STRING }}
+        run: |
+          dotnet ef database update \
+            --project src/KinCare.API \
+            --connection "${{ secrets.BETA_DB_CONNECTION_STRING }}" \
+            --no-build
+
+  # ── 4. Deploy API to Railway (beta) ─────────────────────────────────────────
+  deploy-api-beta:
+    name: Deploy API to Railway (Beta)
+    needs: migrate-beta
+    runs-on: ubuntu-latest
+    environment:
+      name: beta
+      url: ${{ vars.BETA_API_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway beta service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_BETA_TOKEN }}
+        run: |
+          railway up \
+            --service kincare-api-beta \
+            --environment beta \
+            --detach
+
+      - name: Wait for Railway health check
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_BETA_TOKEN }}
+        run: |
+          echo "Waiting for beta API to become healthy..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.BETA_API_URL }}/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "API healthy after ${i}x5s"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS — retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::API did not become healthy within 60s"
+          exit 1
+
+  # ── 5. Deploy Angular to Vercel (beta/preview) ───────────────────────────────
+  deploy-web-beta:
+    name: Deploy Web to Vercel (Beta Preview)
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: beta
+      url: ${{ vars.BETA_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: src/KinCare.Web/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Install dependencies
+        working-directory: src/KinCare.Web
+        run: npm ci
+
+      - name: Inject beta environment values
+        working-directory: src/KinCare.Web/src/environments
+        env:
+          KINCARE_API_URL: ${{ vars.BETA_API_URL }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          FCM_VAPID_KEY: ${{ secrets.FCM_VAPID_KEY }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        run: |
+          sed -i "s|KINCARE_API_URL_PLACEHOLDER|${KINCARE_API_URL}|g" environment.production.ts
+          sed -i "s|GOOGLE_MAPS_API_KEY_PLACEHOLDER|${GOOGLE_MAPS_API_KEY}|g" environment.production.ts
+          sed -i "s|FCM_VAPID_KEY_PLACEHOLDER|${FCM_VAPID_KEY}|g" environment.production.ts
+          sed -i "s|FIREBASE_API_KEY_PLACEHOLDER|${FIREBASE_API_KEY}|g" environment.production.ts
+          sed -i "s|FIREBASE_AUTH_DOMAIN_PLACEHOLDER|${FIREBASE_AUTH_DOMAIN}|g" environment.production.ts
+          sed -i "s|FIREBASE_PROJECT_ID_PLACEHOLDER|${FIREBASE_PROJECT_ID}|g" environment.production.ts
+          sed -i "s|FIREBASE_STORAGE_BUCKET_PLACEHOLDER|${FIREBASE_STORAGE_BUCKET}|g" environment.production.ts
+          sed -i "s|FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER|${FIREBASE_MESSAGING_SENDER_ID}|g" environment.production.ts
+          sed -i "s|FIREBASE_APP_ID_PLACEHOLDER|${FIREBASE_APP_ID}|g" environment.production.ts
+
+      - name: Build Angular for beta
+        working-directory: src/KinCare.Web
+        run: npm run build -- --configuration production
+
+      - name: Deploy to Vercel (preview)
+        working-directory: src/KinCare.Web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel deploy dist/kin-care.web/browser \
+            --token "$VERCEL_TOKEN" \
+            --yes \
+            --name kincare-beta \
+            --env KINCARE_API_URL="${{ vars.BETA_API_URL }}"
+
+  # ── 6. E2E tests against beta ────────────────────────────────────────────────
+  e2e-beta:
+    name: E2E Tests (Beta)
+    needs: [deploy-api-beta, deploy-web-beta]
+    runs-on: ubuntu-latest
+    environment: beta
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E Tests
+        working-directory: e2e
+        env:
+          BASE_URL: ${{ vars.BETA_URL }}
+          API_URL: ${{ vars.BETA_API_URL }}
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: npx playwright test
+
+      - name: Upload E2E Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-beta
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/

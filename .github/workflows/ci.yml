@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  NODE_VERSION: "20"
+
+jobs:
+  build-api:
+    name: Build & Test API
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kincare_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run Unit Tests
+        run: dotnet test src/KinCare.Tests --no-build --configuration Release --logger trx --results-directory TestResults/unit
+
+      - name: Run Integration Tests
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=kincare_test;Username=postgres;Password=postgres"
+        run: dotnet test tests/KinCare.API.IntegrationTests --no-build --configuration Release --logger trx --results-directory TestResults/integration
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-api
+          path: TestResults/
+
+  check-migrations:
+    name: Validate Pending Migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kincare_migration_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Apply migrations to ephemeral DB
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=kincare_migration_check;Username=postgres;Password=postgres"
+        run: |
+          dotnet ef database update \
+            --project src/KinCare.API \
+            --connection "Host=localhost;Database=kincare_migration_check;Username=postgres;Password=postgres"
+
+      - name: Check for un-scaffolded model changes
+        run: |
+          dotnet ef migrations has-pending-model-changes \
+            --project src/KinCare.API && echo "No pending model changes." || \
+            (echo "::error::EF model has changes not captured in a migration. Run 'dotnet ef migrations add <name>' locally." && exit 1)
+
+  build-web:
+    name: Build & Test Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: src/KinCare.Web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/KinCare.Web
+        run: npm ci
+
+      - name: Lint
+        working-directory: src/KinCare.Web
+        run: npm run lint --if-present
+
+      - name: Run Unit Tests
+        working-directory: src/KinCare.Web
+        run: npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
+
+      - name: Build Production
+        working-directory: src/KinCare.Web
+        run: npm run build -- --configuration production
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-web
+          path: src/KinCare.Web/coverage/

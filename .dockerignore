@@ -1,0 +1,9 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.git
+**/.github
+**/e2e
+**/TestResults
+**/.DS_Store

@@ -1,0 +1,105 @@
+<div class="billing-page">
+  <div class="page-header">
+    <h1>Billing & Subscription</h1>
+    <p class="subtitle">Manage your KinCare plan and payment details.</p>
+  </div>
+
+  @if (loading) {
+    <div class="loading-center">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  } @else if (error) {
+    <div class="error-card">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ error }}</span>
+    </div>
+  } @else if (plan) {
+    <div class="billing-grid">
+
+      <!-- Current plan card -->
+      <mat-card class="current-plan-card">
+        <mat-card-header>
+          <mat-card-title>Current Plan</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="plan-badge" [class]="'plan-' + plan.planTier.toLowerCase()">
+            {{ tierLabel(plan.planTier) }}
+          </div>
+
+          @if (!plan.isActive) {
+            <div class="status-banner status-inactive">
+              <mat-icon>warning</mat-icon>
+              Subscription inactive — update payment to restore access.
+            </div>
+          } @else if (plan.trialEndsAt) {
+            <div class="status-banner status-trial">
+              <mat-icon>hourglass_bottom</mat-icon>
+              Free trial ends {{ plan.trialEndsAt | date:'mediumDate' }}
+            </div>
+          } @else if (plan.currentPeriodEnd) {
+            <div class="status-banner status-active">
+              <mat-icon>check_circle</mat-icon>
+              Renews {{ plan.currentPeriodEnd | date:'mediumDate' }}
+            </div>
+          }
+
+          <mat-divider class="divider"></mat-divider>
+
+          <div class="usage-stats">
+            <div class="stat">
+              <span class="stat-value">{{ plan.ridesThisMonth }}</span>
+              <span class="stat-label">Rides this month</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{{ plan.completionRate | number:'1.0-0' }}%</span>
+              <span class="stat-label">Completion rate</span>
+            </div>
+          </div>
+
+          <button mat-stroked-button (click)="openPortal()" [disabled]="portalLoading" class="portal-btn">
+            @if (portalLoading) {
+              <mat-spinner diameter="18"></mat-spinner>
+            } @else {
+              <mat-icon>open_in_new</mat-icon>
+            }
+            Manage Payment & Invoices
+          </button>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Plan comparison -->
+      <mat-card class="plans-card">
+        <mat-card-header>
+          <mat-card-title>Available Plans</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="plans-grid">
+            @for (tier of ['Starter', 'Professional', 'Enterprise']; track tier) {
+              <div class="plan-option" [class.current]="plan.planTier === tier">
+                <div class="plan-name">{{ tier }}</div>
+                <ul class="feature-list">
+                  @for (feature of planFeatures[tier]; track feature) {
+                    <li>
+                      <mat-icon class="check-icon">check</mat-icon>
+                      {{ feature }}
+                    </li>
+                  }
+                </ul>
+                @if (plan.planTier === tier) {
+                  <mat-chip color="primary" selected>Current Plan</mat-chip>
+                } @else if (tier !== 'Enterprise') {
+                  <button mat-flat-button color="primary" (click)="subscribe(tier)">
+                    {{ plan.planTier === 'Starter' ? 'Upgrade' : 'Change' }} to {{ tier }}
+                  </button>
+                } @else {
+                  <a mat-stroked-button href="mailto:sales@kincare.io">Contact Sales</a>
+                }
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+  }
+</div>

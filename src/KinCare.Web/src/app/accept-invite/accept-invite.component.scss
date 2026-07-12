@@ -1,0 +1,29 @@
+.invite-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+
+  mat-card {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .error {
+    color: #f44336;
+    font-size: 0.875rem;
+  }
+
+  .email-display {
+    margin: 1rem 0;
+    color: #666;
+  }
+}

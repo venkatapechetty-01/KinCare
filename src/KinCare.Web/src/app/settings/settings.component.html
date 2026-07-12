@@ -1,0 +1,257 @@
+<div class="settings-container">
+  <div class="page-header">
+    <h1>Account & Settings</h1>
+    <p class="subtitle">Manage your profile and account preferences</p>
+  </div>
+
+  <!-- Profile Photo Section -->
+  <mat-card class="settings-card photo-card">
+    <mat-card-header>
+      <mat-card-title>Profile Photo</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="photo-section">
+        <div class="photo-preview">
+          @if (photoPreview) {
+            <img [src]="photoPreview" alt="Profile preview" class="preview-image">
+          } @else {
+            <div class="default-avatar">
+              <mat-icon>person</mat-icon>
+            </div>
+          }
+        </div>
+        <div class="photo-actions">
+          <input
+            type="file"
+            #fileInput
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            style="display: none">
+          <button mat-raised-button color="primary" (click)="fileInput.click()">
+            <mat-icon>upload</mat-icon>
+            Choose Photo
+          </button>
+          @if (selectedFile) {
+            <button mat-raised-button color="accent" (click)="uploadPhoto()">
+              <mat-icon>check</mat-icon>
+              Upload Photo
+            </button>
+          }
+          @if (photoPreview || selectedFile) {
+            <button mat-raised-button color="warn" (click)="removePhoto()">
+              <mat-icon>delete</mat-icon>
+              Remove Photo
+            </button>
+          }
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Account Information Section -->
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title>Account Information</mat-card-title>
+      @if (!isEditingProfile) {
+        <button mat-icon-button (click)="toggleEditProfile()" class="edit-button">
+          <mat-icon>edit</mat-icon>
+        </button>
+      }
+    </mat-card-header>
+    <mat-card-content>
+      @if (!isEditingProfile) {
+        <div class="info-grid">
+          <div class="info-item">
+            <mat-icon>person</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Full Name</span>
+              <span class="info-value">{{ currentUser?.firstName }} {{ currentUser?.lastName }}</span>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>email</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Email Address</span>
+              <span class="info-value">{{ currentUser?.email }}</span>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>badge</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Role</span>
+              <span class="info-value">{{ getRoleDisplay(currentUser?.role || '') }}</span>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>business</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Organization Name</span>
+              <span class="info-value">{{ currentUser?.organizationName || 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="info-item">
+            <mat-icon>badge</mat-icon>
+            <div class="info-details">
+              <span class="info-label">License Number</span>
+              <span class="info-value">{{ currentUser?.licenseNumber || 'N/A' }}</span>
+            </div>
+          </div>
+
+          @if (currentUser?.facilityId) {
+            <div class="info-item">
+              <mat-icon>location_city</mat-icon>
+              <div class="info-details">
+                <span class="info-label">Facility ID</span>
+                <span class="info-value">{{ currentUser?.facilityId }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <form [formGroup]="editProfileForm" class="edit-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>First Name</mat-label>
+            <input matInput formControlName="firstName" placeholder="Enter your first name">
+            <mat-icon matPrefix>person</mat-icon>
+            @if (editProfileForm.get('firstName')?.hasError('required')) {
+              <mat-error>First name is required</mat-error>
+            }
+            @if (editProfileForm.get('firstName')?.hasError('minlength')) {
+              <mat-error>First name must be at least 2 characters</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Last Name</mat-label>
+            <input matInput formControlName="lastName" placeholder="Enter your last name">
+            <mat-icon matPrefix>person</mat-icon>
+            @if (editProfileForm.get('lastName')?.hasError('required')) {
+              <mat-error>Last name is required</mat-error>
+            }
+            @if (editProfileForm.get('lastName')?.hasError('minlength')) {
+              <mat-error>Last name must be at least 2 characters</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Email Address</mat-label>
+            <input matInput type="email" formControlName="email" placeholder="Enter your email">
+            <mat-icon matPrefix>email</mat-icon>
+            @if (editProfileForm.get('email')?.hasError('required')) {
+              <mat-error>Email is required</mat-error>
+            }
+            @if (editProfileForm.get('email')?.hasError('email')) {
+              <mat-error>Please enter a valid email address</mat-error>
+            }
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-raised-button color="primary" (click)="saveProfile()" [disabled]="!editProfileForm.valid">
+              <mat-icon>save</mat-icon>
+              Save Changes
+            </button>
+            <button mat-raised-button (click)="toggleEditProfile()">
+              <mat-icon>cancel</mat-icon>
+              Cancel
+            </button>
+          </div>
+        </form>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Change Password Section -->
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title>Security</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @if (!isChangingPassword) {
+        <div class="security-section">
+          <div class="security-item">
+            <mat-icon>lock</mat-icon>
+            <div>
+              <h3>Password</h3>
+              <p>Last changed: Never (or unknown)</p>
+            </div>
+          </div>
+          <button mat-raised-button color="primary" (click)="toggleChangePassword()">
+            <mat-icon>vpn_key</mat-icon>
+            Change Password
+          </button>
+        </div>
+      } @else {
+        <form [formGroup]="changePasswordForm" class="edit-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Current Password</mat-label>
+            <input matInput type="password" formControlName="currentPassword" placeholder="Enter current password">
+            <mat-icon matPrefix>lock</mat-icon>
+            @if (changePasswordForm.get('currentPassword')?.hasError('required')) {
+              <mat-error>Current password is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>New Password</mat-label>
+            <input matInput type="password" formControlName="newPassword" placeholder="Enter new password">
+            <mat-icon matPrefix>lock_open</mat-icon>
+            @if (changePasswordForm.get('newPassword')?.hasError('required')) {
+              <mat-error>New password is required</mat-error>
+            }
+            @if (changePasswordForm.get('newPassword')?.hasError('minlength')) {
+              <mat-error>Password must be at least 8 characters</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Confirm New Password</mat-label>
+            <input matInput type="password" formControlName="confirmPassword" placeholder="Confirm new password">
+            <mat-icon matPrefix>lock_open</mat-icon>
+            @if (changePasswordForm.get('confirmPassword')?.hasError('required')) {
+              <mat-error>Please confirm your new password</mat-error>
+            }
+            @if (changePasswordForm.get('confirmPassword')?.hasError('passwordMismatch')) {
+              <mat-error>Passwords do not match</mat-error>
+            }
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-raised-button color="primary" (click)="changePassword()" [disabled]="!changePasswordForm.valid">
+              <mat-icon>save</mat-icon>
+              Change Password
+            </button>
+            <button mat-raised-button (click)="toggleChangePassword()">
+              <mat-icon>cancel</mat-icon>
+              Cancel
+            </button>
+          </div>
+        </form>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Session -->
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title>Session</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="security-section">
+        <div class="security-item">
+          <mat-icon>logout</mat-icon>
+          <div>
+            <h3>Sign Out</h3>
+            <p>Sign out of your KinCare account</p>
+          </div>
+        </div>
+        <button mat-raised-button color="primary" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          Logout
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,104 @@
+<div class="branches-container">
+  <div class="page-header">
+    <div class="header-text">
+      <h1>All Branches</h1>
+      <p class="subtitle">Manage all facilities in your organization</p>
+    </div>
+    <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm">
+      <mat-icon>add</mat-icon>
+      Add Branch
+    </button>
+  </div>
+
+  @if (showAddForm) {
+    <mat-card class="add-form-card">
+      <mat-card-header>
+        <mat-card-title>New Branch</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="addForm" (ngSubmit)="addBranch()">
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Branch Name</mat-label>
+              <input matInput formControlName="name" placeholder="e.g., Uptown Branch" />
+              @if (addForm.get('name')?.hasError('required') && addForm.get('name')?.touched) {
+                <mat-error>Branch name is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Address</mat-label>
+              <input matInput formControlName="address" placeholder="e.g., 456 Oak Ave, Austin TX" />
+              @if (addForm.get('address')?.hasError('required') && addForm.get('address')?.touched) {
+                <mat-error>Address is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="showAddForm = false">Cancel</button>
+            <button mat-raised-button color="primary" type="submit"
+                    [disabled]="addForm.invalid || saving">
+              @if (saving) { <mat-spinner diameter="18"></mat-spinner> }
+              @else { Save Branch }
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner></mat-spinner>
+      <p>Loading branches...</p>
+    </div>
+  } @else if (facilities.length === 0) {
+    <div class="empty-state">
+      <mat-icon>location_city</mat-icon>
+      <h2>No branches yet</h2>
+      <p>Click "Add Branch" to create your first facility</p>
+    </div>
+  } @else {
+    <div class="branches-grid">
+      @for (facility of facilities; track facility.id) {
+        <mat-card class="branch-card">
+          <mat-card-header>
+            <div class="branch-header">
+              <div class="branch-icon">
+                <mat-icon>location_city</mat-icon>
+              </div>
+              <div class="branch-info">
+                <h2>{{ facility.name }}</h2>
+                <p class="address">
+                  <mat-icon>place</mat-icon>
+                  {{ facility.address }}
+                </p>
+              </div>
+            </div>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="stats">
+              <div class="stat">
+                <span class="stat-value">{{ facility.activeRides }}</span>
+                <span class="stat-label">Active Rides</span>
+              </div>
+              @if (facility.uberHealthEnabled) {
+                <div class="uber-badge">
+                  <mat-icon>directions_car</mat-icon>
+                  Uber Health
+                </div>
+              }
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <button mat-raised-button color="primary" (click)="viewBranch(facility.id)">
+              <mat-icon>visibility</mat-icon>
+              View Branch
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</div>

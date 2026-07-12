@@ -1,0 +1,142 @@
+.org-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1a237e;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+  }
+}
+
+.metrics-loading {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.metrics-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.metric-card {
+  flex: 1;
+  min-width: 140px;
+  border-radius: 12px;
+
+  mat-card-content {
+    padding: 16px !important;
+    text-align: center;
+  }
+
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a237e;
+    line-height: 1;
+
+    &.metric-vendor {
+      font-size: 1rem;
+      margin-top: 8px;
+    }
+  }
+
+  .metric-label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 4px;
+  }
+}
+
+.team-card {
+  border-radius: 12px;
+
+  mat-card-header {
+    display: flex;
+    align-items: center;
+    padding-bottom: 16px;
+  }
+
+  .spacer { flex: 1; }
+}
+
+.invite-form {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px;
+  background: #f8f9ff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  mat-form-field {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .invite-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding-top: 8px;
+  }
+}
+
+.users-table {
+  width: 100%;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #bdbdbd;
+  margin-right: 6px;
+
+  &.active { background: #4caf50; }
+}
+
+.inactive-row {
+  opacity: 0.5;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #9e9e9e;
+
+  mat-icon {
+    font-size: 3rem;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 12px;
+  }
+
+  p { margin: 0; }
+}
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}

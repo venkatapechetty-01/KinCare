@@ -1,0 +1,159 @@
+<div class="history-container">
+  <mat-card class="history-card">
+    <mat-card-header>
+      <mat-card-title>Ride History</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Filters -->
+      <form [formGroup]="filterForm" class="filter-form">
+        <div class="filter-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status">
+              <mat-option value="">All Statuses</mat-option>
+              @for (status of statuses; track status) {
+                <mat-option [value]="status">{{ status }}</mat-option>
+              }
+            </mat-select>
+            <mat-icon matIconPrefix>info</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Channel</mat-label>
+            <mat-select formControlName="channel">
+              <mat-option value="">All Channels</mat-option>
+              @for (channel of channels; track channel) {
+                <mat-option [value]="channel">{{ channel }}</mat-option>
+              }
+            </mat-select>
+            <mat-icon matIconPrefix>list</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>From Date</mat-label>
+            <input matInput [matDatepicker]="fromPicker" formControlName="from" placeholder="Start date">
+            <mat-datepicker-toggle matIconPrefix [for]="fromPicker"></mat-datepicker-toggle>
+            <mat-datepicker #fromPicker></mat-datepicker>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>To Date</mat-label>
+            <input matInput [matDatepicker]="toPicker" formControlName="to" placeholder="End date">
+            <mat-datepicker-toggle matIconPrefix [for]="toPicker"></mat-datepicker-toggle>
+            <mat-datepicker #toPicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+
+        <div class="filter-actions">
+          <button mat-raised-button type="button" (click)="clearFilters()">
+            <mat-icon>clear</mat-icon>
+            Clear Filters
+          </button>
+          <button mat-raised-button color="accent" type="button" (click)="exportCsv()" [disabled]="exporting || loading">
+            @if (exporting) {
+              <mat-spinner diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
+              Exporting...
+            } @else {
+              <mat-icon>download</mat-icon>
+              Export CSV
+            }
+          </button>
+        </div>
+      </form>
+
+      <!-- Loading State -->
+      @if (loading) {
+        <div class="loading-state">
+          <mat-spinner></mat-spinner>
+          <p>Loading ride history...</p>
+        </div>
+      } @else {
+        <!-- Table -->
+        @if (rides.length > 0) {
+          <div class="table-container">
+            <table mat-table [dataSource]="rides" class="history-table">
+              <!-- Pickup Time Column -->
+              <ng-container matColumnDef="pickupTime">
+                <th mat-header-cell *matHeaderCellDef>Date & Time</th>
+                <td mat-cell *matCellDef="let ride">
+                  {{ formatDateTime(ride.pickupTime) }}
+                </td>
+              </ng-container>
+
+              <!-- Resident Name Column -->
+              <ng-container matColumnDef="residentName">
+                <th mat-header-cell *matHeaderCellDef>Resident</th>
+                <td mat-cell *matCellDef="let ride">{{ ride.residentName }}</td>
+              </ng-container>
+
+              <!-- Vendor Name Column -->
+              <ng-container matColumnDef="vendorName">
+                <th mat-header-cell *matHeaderCellDef>Vendor</th>
+                <td mat-cell *matCellDef="let ride">{{ ride.vendorName || 'N/A' }}</td>
+              </ng-container>
+
+              <!-- Status Column -->
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let ride">
+                  <span class="status-badge" [ngClass]="getStatusClass(ride.status)">
+                    {{ ride.status }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <!-- Channel Column -->
+              <ng-container matColumnDef="dispatchChannel">
+                <th mat-header-cell *matHeaderCellDef>Channel</th>
+                <td mat-cell *matCellDef="let ride">
+                  <div class="channel-cell">
+                    <mat-icon>{{ getChannelIcon(ride.dispatchChannel) }}</mat-icon>
+                    <span>{{ ride.dispatchChannel }}</span>
+                  </div>
+                </td>
+              </ng-container>
+
+              <!-- Pickup Address Column -->
+              <ng-container matColumnDef="pickupAddress">
+                <th mat-header-cell *matHeaderCellDef>Pickup</th>
+                <td mat-cell *matCellDef="let ride">{{ ride.pickupAddress }}</td>
+              </ng-container>
+
+              <!-- Destination Address Column -->
+              <ng-container matColumnDef="destinationAddress">
+                <th mat-header-cell *matHeaderCellDef>Destination</th>
+                <td mat-cell *matCellDef="let ride">{{ ride.destinationAddress }}</td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr
+                mat-row
+                *matRowDef="let ride; columns: displayedColumns"
+                (click)="viewRideDetail(ride.id)"
+                class="clickable-row">
+              </tr>
+            </table>
+          </div>
+
+          <!-- Paginator -->
+          <mat-paginator
+            [length]="total"
+            [pageSize]="pageSize"
+            [pageIndex]="page - 1"
+            [pageSizeOptions]="[10, 25, 50, 100]"
+            (page)="onPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+        } @else {
+          <!-- Empty State -->
+          <div class="empty-state">
+            <mat-icon>history</mat-icon>
+            <p>No ride history found</p>
+            <p class="hint">Completed rides will appear here. Try adjusting your filters.</p>
+          </div>
+        }
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,564 @@
+:host {
+  display: block;
+  background: #f7f8fc;
+  min-height: 100vh;
+}
+
+// ── Page shell ────────────────────────────────────────────────────────────────
+
+.booking-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 0 120px; // space for sticky footer
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6rem 2rem;
+    gap: 1.5rem;
+    color: #666;
+    font-size: 1rem;
+  }
+}
+
+// ── Page header ───────────────────────────────────────────────────────────────
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 0;
+  margin-bottom: 1.25rem;
+
+  .back-btn {
+    color: #555;
+    flex-shrink: 0;
+  }
+
+  .page-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .page-subtitle {
+    font-size: 0.85rem;
+    color: #888;
+  }
+}
+
+// ── Empty state banner ────────────────────────────────────────────────────────
+
+.empty-residents-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 1.5rem 1.25rem;
+  padding: 0.75rem 1rem;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #5d4037;
+
+  mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; color: #f9a825; flex-shrink: 0; }
+  a { color: #3f51b5; font-weight: 600; }
+}
+
+// ── Form sections ─────────────────────────────────────────────────────────────
+
+.booking-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 1.5rem;
+}
+
+.form-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+
+  .section-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #3f51b5;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .section-optional {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #999;
+  }
+}
+
+// ── Form fields ───────────────────────────────────────────────────────────────
+
+.field-full { width: 100%; }
+
+mat-form-field {
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper { background: #f7f8fc; border-radius: 10px; }
+    .mdc-notched-outline__leading { border-radius: 10px 0 0 10px; }
+    .mdc-notched-outline__trailing { border-radius: 0 10px 10px 0; }
+    mat-label { font-weight: 600; color: #555; }
+    input, textarea, .mat-mdc-select-value-text { font-size: 0.95rem; color: #111; }
+    mat-icon[matprefix] { color: #3f51b5; }
+  }
+}
+
+// ── Resident autocomplete ─────────────────────────────────────────────────────
+
+.resident-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 4px 0;
+
+  .resident-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3f51b5, #5c6bc0);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .resident-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .resident-full-name { font-size: 0.95rem; font-weight: 600; color: #111; }
+    .needs-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  }
+}
+
+// ── Selected resident card ────────────────────────────────────────────────────
+
+.selected-resident-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: #f0f2ff;
+  border: 1.5px solid #c5cae9;
+  border-radius: 12px;
+  animation: fadeIn 0.2s ease;
+
+  .src-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3f51b5, #7986cb);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .src-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .src-name { font-size: 1rem; font-weight: 700; color: #111; }
+    .src-ambulatory { font-size: 0.8rem; color: #666; }
+    .src-needs { display: flex; gap: 4px; flex-wrap: wrap; }
+  }
+
+  .src-check { color: #43a047; font-size: 1.4rem; width: 1.4rem; height: 1.4rem; }
+}
+
+// ── Need chips ────────────────────────────────────────────────────────────────
+
+.need-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+
+  &.wheelchair { background: #e3f2fd; color: #1565c0; }
+  &.oxygen     { background: #e8f5e9; color: #2e7d32; }
+  &.stretcher  { background: #fce4ec; color: #c62828; }
+  &.walker     { background: #fff3e0; color: #e65100; }
+}
+
+// ── Date + time row ───────────────────────────────────────────────────────────
+
+.date-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.field-date { width: 100%; }
+.field-time { width: 100%; }
+
+// ── Datetime preview ──────────────────────────────────────────────────────────
+
+.datetime-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2e7d32;
+  animation: fadeIn 0.15s ease;
+
+  mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
+}
+
+// ── Quick times ───────────────────────────────────────────────────────────────
+
+.quick-times {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  .quick-label {
+    font-size: 0.78rem;
+    color: #999;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .quick-btn {
+    font-size: 0.8rem !important;
+    padding: 0 10px !important;
+    height: 30px !important;
+    line-height: 28px !important;
+    border-radius: 20px !important;
+    border-color: #c5cae9 !important;
+    color: #3f51b5 !important;
+    min-width: 0 !important;
+
+    &:hover { background: #e8eaf6; }
+  }
+}
+
+// ── Facility address shortcut ─────────────────────────────────────────────────
+
+.facility-addr-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start !important;
+  padding: 0.6rem 1rem !important;
+  border-color: #c5cae9 !important;
+  border-radius: 10px !important;
+  color: #3f51b5 !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  text-align: left;
+  height: auto !important;
+  line-height: 1.4 !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+
+  mat-icon { color: #3f51b5; font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
+
+  .facility-addr-preview {
+    font-size: 0.75rem;
+    color: #888;
+    font-weight: 400;
+    margin-top: 2px;
+    white-space: normal;
+    word-break: break-all;
+  }
+}
+
+// ── Route arrow ───────────────────────────────────────────────────────────────
+
+.route-arrow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: -0.25rem 0;
+  padding: 0 1.5rem;
+
+  .route-line {
+    flex: 1;
+    height: 1px;
+    background: #e0e0e0;
+  }
+
+  .route-icon {
+    color: #bbb;
+    font-size: 1.2rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin: 0 0.25rem;
+  }
+}
+
+// ── Transport mode grid ───────────────────────────────────────────────────────
+
+.transport-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.625rem;
+}
+
+.transport-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0.875rem 0.5rem 0.75rem;
+  background: #f7f8fc;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+
+  mat-icon { font-size: 1.6rem; width: 1.6rem; height: 1.6rem; }
+
+  .tile-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #444;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .tile-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: #e8eaf6;
+    color: #3f51b5;
+    padding: 1px 5px;
+    border-radius: 10px;
+  }
+
+  .tile-check {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    color: #3f51b5;
+  }
+
+  &:hover:not(.disabled) {
+    border-color: #9fa8da;
+    background: #f0f2ff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(63, 81, 181, 0.15);
+  }
+
+  &.selected {
+    border-color: #3f51b5;
+    background: #e8eaf6;
+    box-shadow: 0 2px 8px rgba(63, 81, 181, 0.2);
+
+    .tile-label { color: #3f51b5; }
+  }
+
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+// ── Transport info pill ───────────────────────────────────────────────────────
+
+.transport-info-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
+  background: #f5f5f5;
+  border-left: 4px solid #3f51b5;
+  animation: fadeIn 0.15s ease;
+
+  &[data-mode="SmsNemt"]      { border-left-color: #c62828; background: #fff5f5; }
+  &[data-mode="SmsTaxi"]      { border-left-color: #f57c00; background: #fff8f0; }
+  &[data-mode="UberHealth"]   { border-left-color: #d32f2f; background: #fff3f3; }
+  &[data-mode="UberBusiness"] { border-left-color: #1a1a1a; background: #f5f5f5; }
+  &[data-mode="Broker"]       { border-left-color: #6a1b9a; background: #f5f0ff; }
+  &[data-mode="auto"]         { border-left-color: #3f51b5; background: #f0f2ff; }
+
+  mat-icon { font-size: 1.3rem; width: 1.3rem; height: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+
+  .tip-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong { font-size: 0.875rem; font-weight: 700; color: #111; }
+    span   { font-size: 0.8rem;   color: #555; line-height: 1.4; }
+  }
+}
+
+// ── Sticky footer ─────────────────────────────────────────────────────────────
+
+.sticky-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+
+  .footer-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+
+    .summary-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #3f51b5;
+      background: #e8eaf6;
+      padding: 3px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+
+      mat-icon { font-size: 0.9rem; width: 0.9rem; height: 0.9rem; }
+    }
+
+    .summary-divider { color: #bbb; font-size: 1rem; }
+
+    .summary-hint {
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+  }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+
+    .cancel-btn {
+      color: #888;
+      font-size: 0.875rem !important;
+    }
+
+    .submit-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem !important;
+      font-weight: 700 !important;
+      padding: 0 1.5rem !important;
+      height: 44px !important;
+      border-radius: 22px !important;
+
+      mat-spinner { flex-shrink: 0; }
+      mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
+    }
+  }
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// ── Mobile ────────────────────────────────────────────────────────────────────
+
+@media (max-width: 600px) {
+  .booking-page {
+    padding-bottom: 140px;
+  }
+
+  .date-time-row {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sticky-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+
+    .footer-actions {
+      justify-content: flex-end;
+
+      .submit-btn { flex: 1; justify-content: center; }
+    }
+  }
+}

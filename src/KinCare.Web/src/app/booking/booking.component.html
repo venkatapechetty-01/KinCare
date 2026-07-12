@@ -1,0 +1,264 @@
+<div class="booking-page">
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Loading booking form…</p>
+    </div>
+  } @else {
+
+    <div class="page-header">
+      <button mat-icon-button class="back-btn" (click)="cancel()" matTooltip="Back to dashboard">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="page-title-group">
+        <h1 class="page-title">Book a Ride</h1>
+        <span class="page-subtitle">Fill in the details below — takes about 30 seconds</span>
+      </div>
+    </div>
+
+    @if (residents.length === 0) {
+      <div class="empty-residents-banner">
+        <mat-icon>info_outline</mat-icon>
+        <span>No residents yet — <a routerLink="/residents">add a resident</a> before booking.</span>
+      </div>
+    }
+
+    <form [formGroup]="bookingForm" (ngSubmit)="onSubmit()" class="booking-form" autocomplete="off">
+
+      <!-- ── SECTION 1: WHO ─────────────────────────────────── -->
+      <div class="form-section">
+        <div class="section-label">
+          <span class="section-number">1</span>
+          <span class="section-title">Who is riding?</span>
+        </div>
+
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Resident Name</mat-label>
+          <input matInput formControlName="residentName"
+                 placeholder="Start typing a name…"
+                 [matAutocomplete]="residentAuto">
+          <mat-icon matPrefix>person</mat-icon>
+          <mat-autocomplete #residentAuto="matAutocomplete" (optionSelected)="onResidentSelected($event)">
+            @if (filteredResidents | async; as filtered) {
+              @for (r of filtered; track r.id) {
+                <mat-option [value]="getResidentDisplay(r)">
+                  <div class="resident-row">
+                    <div class="resident-avatar">{{ r.firstName[0] }}{{ r.lastName[0] }}</div>
+                    <div class="resident-info">
+                      <span class="resident-full-name">{{ r.firstName }} {{ r.lastName }}</span>
+                      @if (r.needsWheelchair || r.needsOxygen || r.needsStretcher || r.needsWalker) {
+                        <span class="needs-row">
+                          @if (r.needsWheelchair) { <span class="need-chip wheelchair">♿ Wheelchair</span> }
+                          @if (r.needsOxygen) { <span class="need-chip oxygen">💨 Oxygen</span> }
+                          @if (r.needsStretcher) { <span class="need-chip stretcher">🛏 Stretcher</span> }
+                          @if (r.needsWalker) { <span class="need-chip walker">🦽 Walker</span> }
+                        </span>
+                      }
+                    </div>
+                  </div>
+                </mat-option>
+              }
+            }
+          </mat-autocomplete>
+          @if (bookingForm.get('residentName')?.hasError('required') && bookingForm.get('residentName')?.touched) {
+            <mat-error>Select a resident</mat-error>
+          }
+        </mat-form-field>
+
+        @if (selectedResident) {
+          <div class="selected-resident-card">
+            <div class="src-avatar">{{ selectedResident.firstName[0] }}{{ selectedResident.lastName[0] }}</div>
+            <div class="src-details">
+              <span class="src-name">{{ selectedResident.firstName }} {{ selectedResident.lastName }}</span>
+              @if (selectedResident.needsWheelchair || selectedResident.needsOxygen || selectedResident.needsStretcher || selectedResident.needsWalker) {
+                <div class="src-needs">
+                  @if (selectedResident.needsWheelchair) { <span class="need-chip wheelchair">♿ Wheelchair</span> }
+                  @if (selectedResident.needsOxygen) { <span class="need-chip oxygen">💨 Oxygen</span> }
+                  @if (selectedResident.needsStretcher) { <span class="need-chip stretcher">🛏 Stretcher</span> }
+                  @if (selectedResident.needsWalker) { <span class="need-chip walker">🦽 Walker</span> }
+                </div>
+              } @else {
+                <span class="src-ambulatory">No special equipment needed</span>
+              }
+            </div>
+            <mat-icon class="src-check">check_circle</mat-icon>
+          </div>
+        }
+
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Passenger Phone Number</mat-label>
+          <input matInput type="tel" formControlName="passengerPhone" placeholder="+1 (555) 000-0000">
+          <mat-icon matPrefix>phone</mat-icon>
+          @if (bookingForm.get('passengerPhone')?.hasError('required') && bookingForm.get('passengerPhone')?.touched) {
+            <mat-error>Phone number is required</mat-error>
+          }
+          @if (bookingForm.get('passengerPhone')?.hasError('pattern') && bookingForm.get('passengerPhone')?.touched) {
+            <mat-error>Enter a valid phone number</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <!-- ── SECTION 2: WHEN ────────────────────────────────── -->
+      <div class="form-section">
+        <div class="section-label">
+          <span class="section-number">2</span>
+          <span class="section-title">When?</span>
+        </div>
+
+        <div class="date-time-row">
+          <mat-form-field appearance="outline" class="field-date">
+            <mat-label>Pickup Date</mat-label>
+            <input matInput [matDatepicker]="picker" formControlName="pickupDate"
+                   placeholder="Choose date" readonly (click)="picker.open()">
+            <mat-datepicker-toggle matPrefix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+            @if (bookingForm.get('pickupDate')?.hasError('required') && bookingForm.get('pickupDate')?.touched) {
+              <mat-error>Date required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="field-time">
+            <mat-label>Pickup Time</mat-label>
+            <input matInput type="time" formControlName="pickupTime" step="300">
+            <mat-icon matPrefix>schedule</mat-icon>
+            @if (bookingForm.get('pickupTime')?.hasError('required') && bookingForm.get('pickupTime')?.touched) {
+              <mat-error>Time required</mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        @if (bookingForm.get('pickupDate')?.value && bookingForm.get('pickupTime')?.value) {
+          <div class="datetime-preview">
+            <mat-icon>event</mat-icon>
+            <span>{{ getFormattedDateTime() }}</span>
+          </div>
+        }
+
+        <div class="quick-times">
+          <span class="quick-label">Quick set:</span>
+          @for (qt of quickTimes; track qt.label) {
+            <button type="button" mat-stroked-button class="quick-btn" (click)="setQuickTime(qt)">{{ qt.label }}</button>
+          }
+        </div>
+      </div>
+
+      <!-- ── SECTION 3: WHERE ───────────────────────────────── -->
+      <div class="form-section">
+        <div class="section-label">
+          <span class="section-number">3</span>
+          <span class="section-title">Where?</span>
+        </div>
+
+        @if (facilityAddress) {
+          <button type="button" mat-stroked-button class="facility-addr-btn" (click)="useFacilityAddress()">
+            <mat-icon>business</mat-icon>
+            Use facility address as pickup
+            <span class="facility-addr-preview">{{ facilityAddress }}</span>
+          </button>
+        }
+
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Pick-up Address</mat-label>
+          <textarea matInput formControlName="pickupAddress"
+                    placeholder="Full address including unit/suite number"
+                    rows="2" maxlength="500"></textarea>
+          <mat-icon matPrefix>trip_origin</mat-icon>
+          @if (bookingForm.get('pickupAddress')?.hasError('required') && bookingForm.get('pickupAddress')?.touched) {
+            <mat-error>Pickup address is required</mat-error>
+          }
+          <mat-hint align="end">{{ bookingForm.get('pickupAddress')?.value?.length || 0 }}/500</mat-hint>
+        </mat-form-field>
+
+        <div class="route-arrow">
+          <div class="route-line"></div>
+          <mat-icon class="route-icon">arrow_downward</mat-icon>
+          <div class="route-line"></div>
+        </div>
+
+        <mat-form-field appearance="outline" class="field-full">
+          <mat-label>Drop-off Address</mat-label>
+          <textarea matInput formControlName="destinationAddress"
+                    placeholder="Full drop-off address"
+                    rows="2" maxlength="500"></textarea>
+          <mat-icon matPrefix>place</mat-icon>
+          @if (bookingForm.get('destinationAddress')?.hasError('required') && bookingForm.get('destinationAddress')?.touched) {
+            <mat-error>Drop-off address is required</mat-error>
+          }
+          <mat-hint align="end">{{ bookingForm.get('destinationAddress')?.value?.length || 0 }}/500</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <!-- ── SECTION 4: HOW ─────────────────────────────────── -->
+      <div class="form-section">
+        <div class="section-label">
+          <span class="section-number">4</span>
+          <span class="section-title">How? <span class="section-optional">(transport mode)</span></span>
+        </div>
+
+        <div class="transport-grid">
+          @for (mode of transportModes; track mode.value) {
+            <button type="button"
+                    class="transport-tile"
+                    [class.selected]="bookingForm.get('transportMode')?.value === mode.value"
+                    [class.disabled]="mode.requiresProfessional"
+                    (click)="selectTransportMode(mode.value)"
+                    [matTooltip]="mode.requiresProfessional ? 'Requires Professional plan' : ''">
+              <mat-icon [style.color]="mode.color">{{ mode.icon }}</mat-icon>
+              <span class="tile-label">{{ mode.label }}</span>
+              @if (mode.requiresProfessional) {
+                <span class="tile-badge">Pro</span>
+              }
+              @if (bookingForm.get('transportMode')?.value === mode.value) {
+                <mat-icon class="tile-check">check_circle</mat-icon>
+              }
+            </button>
+          }
+        </div>
+
+        @if (getSelectedTransportMode(); as sel) {
+          <div class="transport-info-pill" [attr.data-mode]="sel.value">
+            <mat-icon [style.color]="sel.color">{{ sel.icon }}</mat-icon>
+            <div class="tip-text">
+              <strong>{{ sel.label }}</strong>
+              <span>{{ sel.description }}</span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- ── STICKY FOOTER ──────────────────────────────────── -->
+      <div class="sticky-footer">
+        <div class="footer-summary">
+          @if (selectedResident && bookingForm.get('pickupTime')?.value) {
+            <span class="summary-pill">
+              <mat-icon>person</mat-icon>{{ selectedResident.firstName }}
+            </span>
+            <span class="summary-divider">·</span>
+            <span class="summary-pill">
+              <mat-icon>schedule</mat-icon>{{ getFormattedDateTime() }}
+            </span>
+          } @else {
+            <span class="summary-hint">Complete all sections above</span>
+          }
+        </div>
+        <div class="footer-actions">
+          <button mat-button type="button" (click)="cancel()" [disabled]="submitting" class="cancel-btn">
+            Cancel
+          </button>
+          <button mat-raised-button color="primary" type="submit"
+                  [disabled]="bookingForm.invalid || submitting" class="submit-btn">
+            @if (submitting) {
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>Booking…</span>
+            } @else {
+              <mat-icon>check_circle</mat-icon>
+              <span>Confirm Booking</span>
+            }
+          </button>
+        </div>
+      </div>
+
+    </form>
+  }
+</div>

@@ -1,0 +1,84 @@
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>Today's Rides</h1>
+    <p class="subtitle">{{ currentDate | date:'fullDate' }}</p>
+  </div>
+
+  @if (loading) {
+    <div class="rides-grid">
+      @for (i of [1,2,3]; track i) {
+        <div class="ride-card skeleton-card">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line short"></div>
+        </div>
+      }
+    </div>
+  } @else if (rides.length === 0) {
+    <div class="empty-state">
+      <mat-icon>directions_car</mat-icon>
+      <h2>No rides scheduled today</h2>
+      <p>Click the + button below to book a ride for your residents</p>
+    </div>
+  } @else {
+    <div class="rides-grid" #ridesGrid>
+      @for (ride of rides; track ride.id) {
+        <mat-card class="ride-card" [class.urgent]="isUrgent(ride)"
+                  (click)="viewRideDetail(ride.id)">
+          <mat-card-header>
+            <div class="ride-header">
+              <div class="ride-info">
+                <h3>{{ ride.residentName || 'Unknown Resident' }}</h3>
+                <p class="pickup-time">
+                  <mat-icon>schedule</mat-icon>
+                  {{ ride.pickupTime | date:'shortTime' }}
+                </p>
+              </div>
+              <mat-chip [class]="'status-' + ride.status.toLowerCase()">
+                {{ getStatusLabel(ride.status) }}
+              </mat-chip>
+            </div>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="location">
+              <mat-icon>my_location</mat-icon>
+              <span>{{ ride.pickupAddress }}</span>
+            </div>
+            <div class="location">
+              <mat-icon>place</mat-icon>
+              <span>{{ ride.destinationAddress }}</span>
+            </div>
+            <div class="ride-meta">
+              <span class="vendor">
+                <mat-icon>local_shipping</mat-icon>
+                {{ ride.vendorName || 'Unassigned' }}
+              </span>
+              <span class="channel">
+                <mat-icon>{{ getChannelIcon(ride.dispatchChannel) }}</mat-icon>
+                {{ ride.dispatchChannel }}
+              </span>
+            </div>
+            @if (ride.lastKnownLat && ride.lastKnownLng) {
+              <div class="tracking-live">
+                <mat-icon class="live-dot">location_on</mat-icon>
+                <span>Live — <strong>{{ ride.status === 'EnRoute' ? 'En Route' : ride.status === 'Arrived' ? 'At Facility' : ride.status === 'PickedUp' ? 'Picked Up' : ride.status === 'AtDestination' ? 'At Destination' : 'Tracking Active' }}</strong></span>
+                <a [href]="'https://maps.google.com/?q=' + ride.lastKnownLat + ',' + ride.lastKnownLng" target="_blank" class="map-link">
+                  Open Map
+                </a>
+              </div>
+            } @else if (ride.status === 'Dispatched' || ride.status === 'Confirmed') {
+              <div class="tracking-pending">
+                <mat-icon>pending</mat-icon>
+                <span>Awaiting driver location</span>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+</div>
+
+<button mat-fab color="accent" class="fab-button" (click)="bookRide()">
+  <mat-icon>add</mat-icon>
+</button>

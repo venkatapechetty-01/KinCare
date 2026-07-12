@@ -1,0 +1,271 @@
+<div class="ride-detail-container">
+  <div class="back-row">
+    <button mat-button (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon> Back to Dashboard
+    </button>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner></mat-spinner>
+      <p>Loading ride details...</p>
+    </div>
+  } @else if (rideDetail) {
+
+    <!-- Status Progress Timeline -->
+    <div class="status-timeline">
+      @for (step of statusSteps; track step.status) {
+        <div class="step" [class.done]="isStatusPast(step.status)" [class.active]="rideDetail.status === step.status" [class.cancelled]="isCancelled">
+          <mat-icon>{{ step.icon }}</mat-icon>
+          <span>{{ step.label }}</span>
+        </div>
+      }
+      @if (isCancelled) {
+        <div class="step active cancelled">
+          <mat-icon>cancel</mat-icon>
+          <span>Cancelled</span>
+        </div>
+      }
+    </div>
+
+    <!-- Ride Summary Card -->
+    <mat-card class="detail-card">
+      <mat-card-header>
+        <mat-card-title>Ride Information</mat-card-title>
+        <mat-chip [class]="'status-' + rideDetail.status.toLowerCase()">
+          {{ getStatusLabel(rideDetail.status) }}
+        </mat-chip>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="info-grid">
+          <div class="info-item">
+            <mat-icon>person</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Resident</span>
+              <span class="info-value">{{ rideDetail.residentName || 'Unknown' }}</span>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>local_shipping</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Vendor</span>
+              <span class="info-value">{{ rideDetail.vendorName || 'Unassigned' }}</span>
+              @if (rideDetail.vendorPhone) {
+                <button mat-stroked-button class="call-btn" (click)="callVendor()" matTooltip="Call vendor">
+                  <mat-icon>call</mat-icon> {{ rideDetail.vendorPhone }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>{{ getChannelIcon(rideDetail.dispatchChannel) }}</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Dispatch Method</span>
+              <span class="info-value">{{ getChannelLabel(rideDetail.dispatchChannel) }}</span>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>schedule</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Pickup Time</span>
+              <span class="info-value">{{ rideDetail.pickupTime | date:'medium' }}</span>
+            </div>
+          </div>
+
+          <div class="info-item location-item">
+            <mat-icon>my_location</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Pickup Location</span>
+              <span class="info-value">{{ rideDetail.pickupAddress }}</span>
+            </div>
+          </div>
+
+          <div class="info-item location-item">
+            <mat-icon>place</mat-icon>
+            <div class="info-details">
+              <span class="info-label">Destination</span>
+              <span class="info-value">{{ rideDetail.destinationAddress }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tracking URL row (shown when trackingToken exists and ride is active) -->
+        @if (trackingUrl && !isTerminal) {
+          <div class="tracking-url-row">
+            <mat-icon>link</mat-icon>
+            <span class="tracking-url-label">Vendor tracking link:</span>
+            <code class="tracking-url-code">{{ trackingUrl }}</code>
+            <button mat-stroked-button class="copy-link-btn" (click)="copyTrackingLink()" matTooltip="Copy to clipboard">
+              <mat-icon>content_copy</mat-icon> Copy Link
+            </button>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Live Tracking Card — only shown when GPS is active -->
+    @if (hasLiveLocation) {
+      <mat-card class="detail-card tracking-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon class="live-icon">gps_fixed</mat-icon>
+            Live Driver Location
+          </mat-card-title>
+          <div class="tracking-header-right">
+            <span class="last-seen-badge">
+              <mat-icon>access_time</mat-icon>
+              {{ getLastSeenLabel() }}
+            </span>
+            <button mat-stroked-button class="copy-link-btn" (click)="copyTrackingLink()" matTooltip="Share tracking link">
+              <mat-icon>share</mat-icon> Share Link
+            </button>
+          </div>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="map-wrapper">
+            <iframe
+              [src]="mapsEmbedUrl | trustedUrl"
+              width="100%"
+              height="340"
+              style="border:0; border-radius: 12px;"
+              allowfullscreen
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Driver location map">
+            </iframe>
+          </div>
+          <div class="tracking-meta">
+            <div class="coord-row">
+              <mat-icon>location_on</mat-icon>
+              <span>
+                {{ rideDetail.lastKnownLat | number:'1.5-5' }},
+                {{ rideDetail.lastKnownLng | number:'1.5-5' }}
+              </span>
+            </div>
+            <a [href]="mapsDirectLink" target="_blank" rel="noopener" mat-stroked-button color="primary" class="open-maps-btn">
+              <mat-icon>open_in_new</mat-icon>
+              Open in Google Maps
+            </a>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    } @else if (rideDetail.trackingToken && !isTerminal) {
+      <!-- Tracking enabled but no GPS fix yet -->
+      <mat-card class="detail-card tracking-card tracking-waiting">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon class="waiting-icon">gps_not_fixed</mat-icon>
+            Live Tracking
+          </mat-card-title>
+          <button mat-stroked-button class="copy-link-btn" (click)="copyTrackingLink()" matTooltip="Share tracking link">
+            <mat-icon>share</mat-icon> Share Link
+          </button>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="tracking-waiting-msg">
+            <mat-spinner diameter="32"></mat-spinner>
+            <p>Waiting for driver's GPS signal&hellip;</p>
+            <p class="tracking-hint">The driver opened the tracking link. Location will appear once their GPS is active.</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Action Buttons Card -->
+    <mat-card class="detail-card actions-card">
+      <mat-card-header>
+        <mat-card-title>Actions</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="action-buttons">
+          @if (canAdvanceTo('Confirmed')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('Confirmed')">
+              <mat-icon>check_circle</mat-icon>
+              Mark as Confirmed
+            </button>
+          }
+          @if (canAdvanceTo('EnRoute')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('EnRoute')">
+              <mat-icon>directions_car</mat-icon>
+              Mark as En Route
+            </button>
+          }
+          @if (canAdvanceTo('Arrived')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('Arrived')">
+              <mat-icon>location_on</mat-icon>
+              Mark as Arrived
+            </button>
+          }
+          @if (canAdvanceTo('Dropped')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('Dropped')">
+              <mat-icon>done</mat-icon>
+              Mark as Dropped Off
+            </button>
+          }
+          @if (canAdvanceTo('Completed')) {
+            <button mat-raised-button color="accent" (click)="advanceStatus('Completed')">
+              <mat-icon>check_circle_outline</mat-icon>
+              Mark as Completed
+            </button>
+          }
+          @if (canCancel()) {
+            <button mat-raised-button color="warn" (click)="cancelRide()">
+              <mat-icon>cancel</mat-icon>
+              Cancel Ride
+            </button>
+          }
+          @if (isCancelled) {
+            <button mat-raised-button class="redispatch-btn" (click)="redispatch()">
+              <mat-icon>refresh</mat-icon>
+              Re-dispatch Ride
+            </button>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Event Timeline Card -->
+    <mat-card class="detail-card timeline-card">
+      <mat-card-header>
+        <mat-card-title>Event Timeline</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-list class="event-timeline">
+          @for (event of rideDetail.events; track event.occurredAt) {
+            <mat-list-item class="event-item">
+              <div class="event-content">
+                <div class="event-header">
+                  <mat-chip [class]="'status-' + event.toStatus.toLowerCase()">
+                    {{ getStatusLabel(event.fromStatus) }} → {{ getStatusLabel(event.toStatus) }}
+                  </mat-chip>
+                  <span class="event-time">{{ event.occurredAt | date:'short' }}</span>
+                </div>
+                <div class="event-details">
+                  <span class="event-trigger">Triggered by: {{ event.triggeredBy }}</span>
+                  @if (event.notes) {
+                    <span class="event-notes">{{ event.notes }}</span>
+                  }
+                </div>
+              </div>
+            </mat-list-item>
+            <mat-divider></mat-divider>
+          }
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+
+  } @else {
+    <div class="empty-state">
+      <mat-icon>error_outline</mat-icon>
+      <h2>Ride not found</h2>
+      <p>The ride you're looking for doesn't exist or you don't have permission to view it.</p>
+      <button mat-raised-button color="primary" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Go Back to Dashboard
+      </button>
+    </div>
+  }
+</div>

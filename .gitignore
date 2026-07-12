@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Secrets — never commit
+src/KinCare.API/appsettings.Development.json
+src/KinCare.API/firebase-service-account.json
+*.env
+.env
+
+# Angular
+src/KinCare.Web/node_modules/
+src/KinCare.Web/dist/
+src/KinCare.Web/.angular/
+
+# macOS
+.DS_Store
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/

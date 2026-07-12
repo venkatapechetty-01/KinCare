@@ -1,0 +1,71 @@
+<div class="vendors-container">
+  <div class="page-header">
+    <h1>Transport Vendors</h1>
+    <p class="subtitle">Manage your facility's transportation service providers</p>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-spinner></mat-spinner>
+      <p>Loading vendors...</p>
+    </div>
+  } @else if (vendors.length === 0) {
+    <div class="empty-state">
+      <mat-icon>local_shipping</mat-icon>
+      <h2>No vendors found</h2>
+      <p>Click the + button below to add your first transport vendor</p>
+    </div>
+  } @else {
+    <div class="vendors-grid">
+    @for (vendor of vendors; track vendor.id) {
+      <mat-card class="vendor-card">
+        <mat-card-header>
+          <div class="vendor-header">
+            <div class="vendor-icon" [class.wheelchair-vendor]="vendor.vendorType === 'Wheelchair'"
+                 [class.ambulatory-vendor]="vendor.vendorType === 'Ambulatory'">
+              <mat-icon>{{ getVendorTypeIcon(vendor.vendorType) }}</mat-icon>
+            </div>
+            <div class="vendor-info">
+              <h2>{{ vendor.name }}</h2>
+              <div class="vendor-badges">
+                <mat-chip [class]="'type-' + vendor.vendorType.toLowerCase()">
+                  <mat-icon>{{ getVendorTypeIcon(vendor.vendorType) }}</mat-icon>
+                  {{ vendor.vendorType }}
+                </mat-chip>
+                <mat-chip [class]="'capability-' + vendor.capabilityTier.toLowerCase()">
+                  @if (vendor.capabilityTier === 'Smart') {
+                    <mat-icon>gps_fixed</mat-icon>
+                  } @else {
+                    <mat-icon>phone</mat-icon>
+                  }
+                  {{ vendor.capabilityTier }}
+                </mat-chip>
+              </div>
+            </div>
+          </div>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="contact-info">
+            <mat-icon>phone</mat-icon>
+            <span class="phone-number">{{ vendor.phoneNumber }}</span>
+          </div>
+          <div class="dispatch-method">
+            <mat-icon>sms</mat-icon>
+            <span>{{ vendor.dispatchMethod }}</span>
+          </div>
+        </mat-card-content>
+        <mat-card-actions>
+          <button mat-raised-button color="primary" (click)="editVendor(vendor)">
+            <mat-icon>edit</mat-icon>
+            Edit Vendor
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    }
+    </div>
+  }
+</div>
+
+<button mat-fab color="accent" class="fab-button" (click)="addVendor()" aria-label="Add vendor">
+  <mat-icon>add</mat-icon>
+</button>

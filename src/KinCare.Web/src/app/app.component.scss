@@ -1,0 +1,235 @@
+.shell-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+
+  .mat-sidenav-content {
+    margin-left: 240px !important;
+  }
+}
+
+/* ── Toolbar ── */
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border-bottom: 3px solid #3f51b5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  height: 64px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menu-btn {
+  color: #3f51b5 !important;
+  flex-shrink: 0;
+}
+
+.toolbar-logo {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #3f51b5;
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  margin-left: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.toolbar-nav {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+  gap: 4px;
+
+  a[mat-button] {
+    color: #333 !important;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0 14px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: #e8eaf6 !important;
+      color: #3f51b5 !important;
+    }
+
+    &.active-link {
+      background: #e8eaf6 !important;
+      color: #3f51b5 !important;
+    }
+  }
+}
+
+.book-ride-btn {
+  flex-shrink: 0;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  padding: 0 20px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  border-radius: 20px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 150, 136, 0.3) !important;
+  text-decoration: none;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* ── User area — always visible ── */
+.user-area {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 10px 6px 6px;
+  border-radius: 24px;
+  border: 2px solid #c5cae9;
+  background: #f5f5ff;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: #e8eaf6;
+    border-color: #3f51b5;
+  }
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #3f51b5;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  color: #666;
+}
+
+.logout-item {
+  color: #c62828 !important;
+  mat-icon { color: #c62828 !important; }
+}
+
+/* ── Side nav ── */
+.sidenav {
+  width: 240px;
+  background: #ffffff;
+  border-right: 1px solid #e0e0e0;
+}
+
+.sidenav-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 3px solid #3f51b5;
+}
+
+.sidenav-logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #3f51b5;
+  letter-spacing: -0.5px;
+}
+
+mat-nav-list a[mat-list-item] {
+  margin: 4px 8px;
+  border-radius: 8px;
+  font-weight: 600;
+
+  mat-icon { color: #555; }
+
+  &:hover {
+    background: #e8eaf6;
+    mat-icon { color: #3f51b5; }
+  }
+}
+
+.sidenav-book-ride {
+  background: #e0f2f1 !important;
+  mat-icon { color: #00796b !important; }
+  span { color: #00796b; font-weight: 700; }
+}
+
+/* ── Responsive: hide desktop nav on mobile ── */
+@media (max-width: 768px) {
+  .toolbar-nav {
+    display: none;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .user-chip {
+    padding: 4px;
+    border-radius: 50%;
+    border-width: 2px;
+
+    .chevron {
+      display: none;
+    }
+  }
+
+  .book-ride-label {
+    display: none;
+  }
+
+  .book-ride-btn {
+    padding: 0 12px !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    min-width: 40px !important;
+  }
+}
