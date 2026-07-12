@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'KINCARE_API_URL_PLACEHOLDER',  // replaced by CI: sed -i 's|KINCARE_API_URL_PLACEHOLDER|...|g'
+  apiUrl: 'http://localhost:5000',  // replaced by CI: sed -i 's|http://localhost:5000|...|g'
   googleMapsApiKey: 'GOOGLE_MAPS_API_KEY_PLACEHOLDER',
   fcmVapidKey: 'FCM_VAPID_KEY_PLACEHOLDER',
   firebaseConfig: {

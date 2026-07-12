@@ -13,6 +13,7 @@ using KinCare.API.Jobs;
 using KinCare.API.Services;
 using KinCare.API.Webhooks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -24,6 +25,12 @@ using Serilog.Sinks.Splunk;
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
+
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 // Serilog — structured logging to console + Splunk HEC
 var splunkConfig = builder.Configuration.GetSection("Splunk");
@@ -184,6 +191,12 @@ builder.Services.AddHealthChecks()
 // Exception Handling
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -248,6 +261,7 @@ if (!app.Environment.IsDevelopment())
 
 // Middleware pipeline
 app.UseExceptionHandler();
+app.UseForwardedHeaders();
 app.UseSerilogRequestLogging(opts =>
 {
     opts.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
@@ -327,6 +341,9 @@ else
 // Recurring Jobs - Use injected IRecurringJobManager
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+
     var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
     recurringJobManager.AddOrUpdate<EscalationJob>("escalation-check",
         job => job.ExecuteAsync(), "*/5 * * * *");
