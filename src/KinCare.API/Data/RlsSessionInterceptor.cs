@@ -49,7 +49,6 @@ public class RlsSessionInterceptor : DbConnectionInterceptor
             cmd.CommandText = $"""
                 SET LOCAL app.current_facility_id = '{facilityId}';
                 SET LOCAL app.current_organization_id = '{orgId}';
-                SET LOCAL app.current_role = '{tenant.Role}';
                 """;
 
             await cmd.ExecuteNonQueryAsync(cancellationToken);
