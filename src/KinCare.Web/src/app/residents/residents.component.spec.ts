@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { Router } from '@angular/router';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ResidentsComponent } from './residents.component';
 
 describe('ResidentsComponent', () => {
@@ -7,7 +10,10 @@ describe('ResidentsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ResidentsComponent],
+      imports: [ResidentsComponent, HttpClientTestingModule, NoopAnimationsModule],
+      providers: [
+        { provide: Router, useValue: jasmine.createSpyObj('Router', ['navigate']) },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ResidentsComponent);

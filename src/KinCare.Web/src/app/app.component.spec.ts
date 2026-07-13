@@ -1,11 +1,28 @@
 import { TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
+import { of } from 'rxjs';
 import { AppComponent } from './app.component';
+import { AuthService } from './shared/auth/auth.service';
+import { RideService } from './shared/services/ride.service';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
+    const authServiceStub = {
+      isAuthenticated: () => false,
+      logout: () => undefined,
+      currentUser: null,
+    } as Partial<AuthService> as AuthService;
+
+    const rideServiceStub = {
+      getTodayCount: () => of({ count: 0 }),
+    } as Partial<RideService> as RideService;
+
     await TestBed.configureTestingModule({
       imports: [AppComponent, RouterTestingModule],
+      providers: [
+        { provide: AuthService, useValue: authServiceStub },
+        { provide: RideService, useValue: rideServiceStub },
+      ],
     }).compileComponents();
   });
 

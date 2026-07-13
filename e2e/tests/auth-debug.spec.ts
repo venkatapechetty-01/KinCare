@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const API_URL = process.env.API_URL || 'http://localhost:5000';
+const API_URL = process.env.API_URL || 'http://localhost:8080';
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'debug@debugtest.com';
 const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'DebugPass123!';
 
@@ -10,7 +10,7 @@ test.describe('Auth flow debug', () => {
 
     page.on('response', (response) => {
       const url = response.url();
-      if (url.includes('localhost:5000')) {
+      if (url.includes('localhost:8080')) {
         requests.push({ url, status: response.status() });
       }
     });

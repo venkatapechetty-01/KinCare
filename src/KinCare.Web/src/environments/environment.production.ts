@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:5000',  // replaced by CI: sed -i 's|http://localhost:5000|...|g'
+  apiUrl: 'http://localhost:5000',
   googleMapsApiKey: 'GOOGLE_MAPS_API_KEY_PLACEHOLDER',
   fcmVapidKey: 'FCM_VAPID_KEY_PLACEHOLDER',
   firebaseConfig: {

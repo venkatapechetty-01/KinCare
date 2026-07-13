@@ -31,16 +31,17 @@ export default defineConfig({
   ],
   webServer: process.env.CI ? undefined : [
     {
-      command: 'cd ../src/KinCare.Web && ng serve --port 4200',
+      command: 'cd ../src/KinCare.Web && npm start -- --port 4200',
       url: 'http://localhost:4200',
       reuseExistingServer: true,
       timeout: 120000,
     },
     {
       command: 'cd ../src/KinCare.API && dotnet run',
-      url: 'http://localhost:5000/health',
+      url: 'http://localhost:8080/health',
       reuseExistingServer: true,
       timeout: 60000,
+      env: { PORT: '8080' },
     },
   ],
 });

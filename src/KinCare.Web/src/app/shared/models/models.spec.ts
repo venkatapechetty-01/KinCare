@@ -40,6 +40,7 @@ describe('Model interfaces', () => {
   describe('RegisterRequest', () => {
     it('should have all required fields', () => {
       const req: RegisterRequest = {
+        role: 'OrgAdmin',
         organizationName: 'Org',
         facilityName: 'Fac',
         facilityAddress: '123 St',
@@ -48,7 +49,7 @@ describe('Model interfaces', () => {
         email: 'j@d.com',
         password: 'pass1234',
       };
-      expect(Object.keys(req).length).toBe(7);
+      expect(Object.keys(req).length).toBe(8);
     });
   });
 
@@ -84,10 +85,10 @@ describe('Model interfaces', () => {
         email: 'user@test.com',
         firstName: 'Test',
         lastName: 'User',
-        role: 'Coordinator',
+        role: 'OrgAdmin',
         organizationId: 'org-1',
       };
-      expect(user.role).toBe('Coordinator');
+      expect(user.role).toBe('OrgAdmin');
       expect(user.facilityId).toBeUndefined();
     });
 

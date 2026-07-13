@@ -71,7 +71,7 @@
       {
         "Endpoint": "POST:/api/onboarding/register",
         "Period": "1m",
-        "Limit": 3
+        "Limit": 100
       },
       {
         "Endpoint": "POST:/webhook/twilio",

@@ -43,7 +43,7 @@ describe('AcceptInviteComponent', () => {
   it('should create', () => {
     createComponent();
     fixture.detectChanges();
-    const req = httpMock.expectOne('http://localhost:5000/api/onboarding/invite/valid-token');
+    const req = httpMock.expectOne('http://localhost:8080/api/onboarding/invite/valid-token');
     req.flush({ email: 'user@test.com', role: 'Coordinator', organizationName: 'Org', facilityName: 'Fac' });
     expect(component).toBeTruthy();
   });
@@ -59,7 +59,7 @@ describe('AcceptInviteComponent', () => {
     createComponent('test-token');
     fixture.detectChanges();
 
-    const req = httpMock.expectOne('http://localhost:5000/api/onboarding/invite/test-token');
+    const req = httpMock.expectOne('http://localhost:8080/api/onboarding/invite/test-token');
     expect(req.request.method).toBe('GET');
     req.flush({
       email: 'invited@test.com',
@@ -77,7 +77,7 @@ describe('AcceptInviteComponent', () => {
     createComponent('bad-token');
     fixture.detectChanges();
 
-    const req = httpMock.expectOne('http://localhost:5000/api/onboarding/invite/bad-token');
+    const req = httpMock.expectOne('http://localhost:8080/api/onboarding/invite/bad-token');
     req.flush({ error: 'Invitation not found.' }, { status: 404, statusText: 'Not Found' });
 
     expect(component.error).toBe('Invitation not found.');
@@ -88,7 +88,7 @@ describe('AcceptInviteComponent', () => {
     beforeEach(() => {
       createComponent();
       fixture.detectChanges();
-      const req = httpMock.expectOne('http://localhost:5000/api/onboarding/invite/valid-token');
+      const req = httpMock.expectOne('http://localhost:8080/api/onboarding/invite/valid-token');
       req.flush({ email: 'u@t.com', role: 'Coordinator', organizationName: 'O', facilityName: 'F' });
     });
 
@@ -119,7 +119,7 @@ describe('AcceptInviteComponent', () => {
     beforeEach(() => {
       createComponent('my-token');
       fixture.detectChanges();
-      const req = httpMock.expectOne('http://localhost:5000/api/onboarding/invite/my-token');
+      const req = httpMock.expectOne('http://localhost:8080/api/onboarding/invite/my-token');
       req.flush({ email: 'u@t.com', role: 'Coordinator', organizationName: 'O', facilityName: 'F' });
     });
 

@@ -26,3 +26,8 @@ src/KinCare.Web/.angular/
 # Logs
 *.log
 logs/
+
+# Playwright / test output
+e2e/test-results/
+e2e/playwright-report/
+src/coverage/

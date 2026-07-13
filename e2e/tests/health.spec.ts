@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const API_URL = process.env.API_URL || 'http://localhost:5000';
+const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 test.describe('Health & Infrastructure', () => {
   test('@smoke API health endpoint returns 200', async ({ request }) => {

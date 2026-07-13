@@ -36,6 +36,7 @@ const ANON_ROUTES = ['/login', '/register', '/invite'];
   styleUrl: './app.component.scss',
 })
 export class AppComponent implements OnInit, OnDestroy {
+  title = 'KinCare.Web';
   showShell = false;
   sidenavOpen = true;
   todayRideCount: number | null = null;

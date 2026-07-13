@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { LoginRequest, RegisterRequest } from '../models/auth.model';
+import { DeviceService } from '../services/device.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -18,6 +20,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: Router, useValue: routerSpy },
+        { provide: DeviceService, useValue: { registerFcmToken: () => undefined } },
       ],
     });
 
@@ -40,7 +43,7 @@ describe('AuthService', () => {
 
       service.login(request).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:5000/api/auth/login');
+      const req = httpMock.expectOne('http://localhost:8080/api/auth/login');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(request);
       req.flush({
@@ -56,7 +59,7 @@ describe('AuthService', () => {
 
       service.login(request).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:5000/api/auth/login');
+      const req = httpMock.expectOne('http://localhost:8080/api/auth/login');
       req.flush({
         accessToken: createFakeJwt(),
         refreshToken: 'refresh-abc',
@@ -75,7 +78,7 @@ describe('AuthService', () => {
 
       service.login(request).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:5000/api/auth/login');
+      const req = httpMock.expectOne('http://localhost:8080/api/auth/login');
       req.flush({
         accessToken: createFakeJwt({ email: 'test@test.com', role: 'Coordinator' }),
         refreshToken: 'r-1',
@@ -92,6 +95,7 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should POST to /api/onboarding/register', () => {
       const request: RegisterRequest = {
+        role: 'OrgAdmin',
         organizationName: 'Org',
         facilityName: 'Fac',
         facilityAddress: '123 St',
@@ -103,7 +107,7 @@ describe('AuthService', () => {
 
       service.register(request).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:5000/api/onboarding/register');
+      const req = httpMock.expectOne('http://localhost:8080/api/onboarding/register');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(request);
       req.flush({
@@ -117,6 +121,7 @@ describe('AuthService', () => {
 
     it('should store tokens on successful registration', () => {
       const request: RegisterRequest = {
+        role: 'OrgAdmin',
         organizationName: 'O',
         facilityName: 'F',
         facilityAddress: 'A',
@@ -128,7 +133,7 @@ describe('AuthService', () => {
 
       service.register(request).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:5000/api/onboarding/register');
+      const req = httpMock.expectOne('http://localhost:8080/api/onboarding/register');
       req.flush({
         accessToken: createFakeJwt(),
         refreshToken: 'reg-refresh',
@@ -186,7 +191,13 @@ describe('AuthService', () => {
 
     it('should return true when valid token exists', () => {
       localStorage.setItem('access_token', createFakeJwt());
-      const freshService = TestBed.inject(AuthService);
+      // AuthService caches user state at construction time, so a fresh instance
+      // is required to pick up the token that was just written to localStorage.
+      const freshService = new AuthService(
+        TestBed.inject(HttpClient),
+        routerSpy,
+        TestBed.inject(DeviceService)
+      );
       expect(freshService.isAuthenticated()).toBeTrue();
     });
   });
@@ -196,11 +207,12 @@ describe('AuthService', () => {
       localStorage.setItem('access_token', createFakeJwt({ role: 'OrgAdmin' }));
       const freshService = new AuthService(
         TestBed.inject(HttpClientTestingModule as any),
-        routerSpy
+        routerSpy,
+        TestBed.inject(DeviceService)
       );
       // Use service after login to test role
       service.login({ email: 'a@b.com', password: 'p' }).subscribe();
-      const req = httpMock.expectOne('http://localhost:5000/api/auth/login');
+      const req = httpMock.expectOne('http://localhost:8080/api/auth/login');
       req.flush({
         accessToken: createFakeJwt({ role: 'OrgAdmin' }),
         refreshToken: 'r',
@@ -213,7 +225,7 @@ describe('AuthService', () => {
 
     it('should return false when user has different role', () => {
       service.login({ email: 'a@b.com', password: 'p' }).subscribe();
-      const req = httpMock.expectOne('http://localhost:5000/api/auth/login');
+      const req = httpMock.expectOne('http://localhost:8080/api/auth/login');
       req.flush({
         accessToken: createFakeJwt({ role: 'Coordinator' }),
         refreshToken: 'r',
@@ -231,7 +243,7 @@ describe('AuthService', () => {
 
       service.acceptInvite(request).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:5000/api/onboarding/accept');
+      const req = httpMock.expectOne('http://localhost:8080/api/onboarding/accept');
       expect(req.request.method).toBe('POST');
       req.flush({
         accessToken: createFakeJwt(),

@@ -1,6 +1,6 @@
 import { Page, APIRequestContext, expect } from '@playwright/test';
 
-export const API_URL = process.env.API_URL || 'http://localhost:5000';
+export const API_URL = process.env.API_URL || 'http://localhost:8080';
 export const BASE_URL = process.env.BASE_URL || 'http://localhost:4200';
 
 export interface TestCredentials {

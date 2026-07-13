@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { Router } from '@angular/router';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { HistoryComponent } from './history.component';
 
 describe('HistoryComponent', () => {
@@ -7,7 +10,10 @@ describe('HistoryComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HistoryComponent],
+      imports: [HistoryComponent, HttpClientTestingModule, NoopAnimationsModule],
+      providers: [
+        { provide: Router, useValue: jasmine.createSpyObj('Router', ['navigate']) },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(HistoryComponent);
