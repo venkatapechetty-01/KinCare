@@ -49,6 +49,7 @@ jobs:
       - name: Run Integration Tests
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Database=kincare_test;Username=postgres;Password=postgres"
+          Jwt__SecretKey: "CiIntegrationTestSecretKey_1234567890123456"
         run: dotnet test tests/KinCare.API.IntegrationTests --no-build --configuration Release --logger trx --results-directory TestResults/integration
 
       - name: Upload Test Results
