@@ -19,19 +19,25 @@ This repository is prepared for a simple Render deployment with three pieces:
 
 ### 2. Set required environment variables
 
-For the API service, add the production values for the secrets referenced in [src/KinCare.API/appsettings.Production.json](src/KinCare.API/appsettings.Production.json).
+.NET reads nested config keys like `Jwt:SecretKey` from environment variables using a
+double-underscore separator (`Jwt__SecretKey`) — that's the naming convention `render.yaml`
+uses for every API env var, and it must be followed exactly for a value to actually reach
+the app's configuration.
 
-Minimum required values:
-- `KINCARE_JWT_SECRET_KEY`
-- `KINCARE_DB_CONNECTION_STRING` (Render will populate this automatically if the blueprint is used)
-- `KINCARE_APP_BASE_URL` (set to the frontend URL after deployment)
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_FROM_NUMBER`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `SENDGRID_API_KEY`
-- `SENDGRID_FROM_EMAIL`
+The API will not start without:
+- `ConnectionStrings__DefaultConnection` — populated automatically by the blueprint from the `kincare-db` database
+- `Jwt__SecretKey` — generated automatically by the blueprint (`generateValue: true`)
+
+The API will start without the rest, but the corresponding feature won't work until set:
+- `App__BaseUrl` / `Cors__AllowedOrigins__0` — set to the frontend's actual Render URL (update these if `kincare-web.onrender.com` isn't available and Render assigns a different hostname)
+- `Twilio__AccountSid`, `Twilio__AuthToken`, `Twilio__FromNumber` — SMS dispatch
+- `Stripe__SecretKey`, `Stripe__WebhookSecret`, `Stripe__StarterPriceId`, `Stripe__ProfessionalPriceId`, `Stripe__EnterpriseId` — billing
+- `SendGrid__ApiKey`, `SendGrid__FromEmail` — invitation emails
+- `Broker__ApiKey`, `Broker__ClientId`, `Broker__ClientSecret`, `Broker__OrganizationId`, `Broker__WebhookSecret` — Roundtrip Health fallback dispatch
+- `Splunk__HecUrl`, `Splunk__HecToken` — log shipping
+
+These are all marked `sync: false` in `render.yaml`, so Render will prompt for each at
+Blueprint creation time — leave any you don't have blank for now, the app boots fine without them.
 
 ### 3. Frontend API URL
 

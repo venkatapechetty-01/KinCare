@@ -240,12 +240,6 @@ var app = builder.Build();
 // Startup validation — fail fast in production if critical secrets are missing
 if (!app.Environment.IsDevelopment())
 {
-    var twilioConfig = app.Configuration.GetSection("Twilio").Get<TwilioConfig>();
-    if (string.IsNullOrWhiteSpace(twilioConfig?.AuthToken))
-        throw new InvalidOperationException(
-            "CRITICAL: Twilio:AuthToken is not configured. " +
-            "Set TWILIO_AUTH_TOKEN environment variable before starting in production.");
-
     var jwtKey = app.Configuration["Jwt:SecretKey"];
     if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
         throw new InvalidOperationException(

@@ -5,55 +5,53 @@ services:
     plan: free
     rootDir: src/KinCare.API
     buildCommand: dotnet publish -c Release
-    startCommand: dotnet ./bin/Release/net9.0/publish/KinCare.API.dll --urls http://0.0.0.0:$PORT
+    startCommand: dotnet ./bin/Release/net9.0/publish/KinCare.API.dll
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      - key: ASPNETCORE_URLS
-        value: http://0.0.0.0:$PORT
-      - key: KINCARE_DB_CONNECTION_STRING
+      - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: kincare-db
           property: connectionString
-      - key: KINCARE_JWT_SECRET_KEY
+      - key: Jwt__SecretKey
         generateValue: true
-      - key: KINCARE_APP_BASE_URL
+      - key: App__BaseUrl
         value: https://kincare-web.onrender.com
-      - key: TWILIO_ACCOUNT_SID
+      - key: Cors__AllowedOrigins__0
+        value: https://kincare-web.onrender.com
+      - key: Twilio__AccountSid
         sync: false
-      - key: TWILIO_AUTH_TOKEN
+      - key: Twilio__AuthToken
         sync: false
-      - key: TWILIO_FROM_NUMBER
+      - key: Twilio__FromNumber
         sync: false
-      - key: SPLUNK_HEC_URL
+      - key: Splunk__HecUrl
         sync: false
-      - key: SPLUNK_HEC_TOKEN
+      - key: Splunk__HecToken
         sync: false
-      - key: STRIPE_SECRET_KEY
+      - key: Stripe__SecretKey
         sync: false
-      - key: STRIPE_WEBHOOK_SECRET
+      - key: Stripe__WebhookSecret
         sync: false
-      - key: STRIPE_STARTER_PRICE_ID
+      - key: Stripe__StarterPriceId
         sync: false
-      - key: STRIPE_PROFESSIONAL_PRICE_ID
+      - key: Stripe__ProfessionalPriceId
         sync: false
-      - key: STRIPE_ENTERPRISE_PRICE_ID
+      - key: Stripe__EnterprisePriceId
         sync: false
-      - key: SENDGRID_API_KEY
+      - key: SendGrid__ApiKey
         sync: false
-      - key: SENDGRID_FROM_EMAIL
+      - key: SendGrid__FromEmail
         sync: false
-      - key: FIREBASE_CREDENTIAL_PATH
+      - key: Broker__ApiKey
         sync: false
-      - key: ROUNDTRIP_API_KEY
+      - key: Broker__ClientId
         sync: false
-      - key: ROUNDTRIP_CLIENT_ID
+      - key: Broker__ClientSecret
         sync: false
-      - key: ROUNDTRIP_CLIENT_SECRET
+      - key: Broker__OrganizationId
         sync: false
-      - key: ROUNDTRIP_ORGANIZATION_ID
-        sync: false
-      - key: ROUNDTRIP_WEBHOOK_SECRET
+      - key: Broker__WebhookSecret
         sync: false
 
   - type: static_site
