@@ -56,11 +56,11 @@ services:
       - key: ROUNDTRIP_WEBHOOK_SECRET
         sync: false
 
-  - type: static
+  - type: static_site
     name: kincare-web
     plan: free
     rootDir: src/KinCare.Web
-    buildCommand: npm install && API_BASE_URL=https://kincare-api.onrender.com npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: dist/kin-care.web
     routes:
       - type: rewrite
