@@ -55,7 +55,6 @@ services:
   - type: web
     runtime: static
     name: kincare-web
-    plan: free
     rootDir: src/KinCare.Web
     buildCommand: npm install && npm run build
     staticPublishPath: dist/kin-care.web
