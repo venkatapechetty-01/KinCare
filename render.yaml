@@ -1,11 +1,9 @@
 services:
   - type: web
     name: kincare-api
-    env: dotnet
+    runtime: docker
+    dockerfilePath: src/KinCare.API/Dockerfile
     plan: free
-    rootDir: src/KinCare.API
-    buildCommand: dotnet publish -c Release
-    startCommand: dotnet ./bin/Release/net9.0/publish/KinCare.API.dll
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
