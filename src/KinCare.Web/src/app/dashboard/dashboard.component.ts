@@ -33,6 +33,8 @@ import * as signalR from '@microsoft/signalr';
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   rides: RideDto[] = [];
   loading = true;
+  upcomingRides: RideDto[] = [];
+  loadingUpcoming = true;
   currentDate = new Date();
   private subscriptions = new Subscription();
   private hubConnection: signalR.HubConnection | null = null;
@@ -46,6 +48,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadTodaysRides();
+    this.loadUpcomingRides();
     this.connectSignalR();
   }
 
@@ -72,16 +75,20 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.hubConnection.on('RideStatusChanged', (rideId: string, newStatus: string) => {
       const ride = this.rides.find(r => r.id === rideId);
+      const upcomingRide = this.upcomingRides.find(r => r.id === rideId);
       if (ride) {
         ride.status = newStatus;
+      } else if (upcomingRide) {
+        upcomingRide.status = newStatus;
       } else {
         // New ride dispatched — reload to get full card data
         this.loadTodaysRides();
+        this.loadUpcomingRides();
       }
     });
 
     this.hubConnection.on('LocationUpdated', (rideId: string, lat: number, lng: number) => {
-      const ride = this.rides.find(r => r.id === rideId);
+      const ride = this.rides.find(r => r.id === rideId) ?? this.upcomingRides.find(r => r.id === rideId);
       if (ride) {
         ride.lastKnownLat = lat;
         ride.lastKnownLng = lng;
@@ -119,6 +126,23 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
+  loadUpcomingRides(): void {
+    this.loadingUpcoming = true;
+    this.subscriptions.add(
+      this.rideService.getUpcomingRides().subscribe({
+        next: (rides) => {
+          this.upcomingRides = rides;
+          this.loadingUpcoming = false;
+          setTimeout(() => this.animateCards(), 0);
+        },
+        error: (error) => {
+          console.error('Error loading upcoming rides:', error);
+          this.loadingUpcoming = false;
+        }
+      })
+    );
+  }
+
   bookRide(): void {
     this.router.navigate(['/booking']);
   }
@@ -136,13 +160,16 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getStatusLabel(status: string): string {
     const labels: Record<string, string> = {
-      'Dispatched':    'Dispatched',
+      'Dispatched':    'Awaiting Acceptance',
       'Confirmed':     'Confirmed',
       'EnRoute':       'On the Way',
       'Arrived':       'At Facility',
       'PickedUp':      'Picked Up',
       'AtDestination': 'At Destination',
       'Dropped':       'Dropped Off',
+      'AwaitingReturn':  'Awaiting Return Pickup',
+      'ReturnEnRoute':   'Returning',
+      'ReturnPickedUp':  'Picked Up (Return)',
       'Completed':     'Completed',
       'Cancelled':     'Cancelled'
     };

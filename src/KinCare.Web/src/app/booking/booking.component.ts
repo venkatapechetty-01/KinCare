@@ -15,12 +15,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RideService } from '../shared/services/ride.service';
 import { ResidentService } from '../shared/services/resident.service';
+import { GeocodeService, AddressSuggestion } from '../shared/services/geocode.service';
 import { AuthService } from '../shared/auth/auth.service';
 import { Resident } from '../shared/models/resident.model';
 import { HttpClient } from '@angular/common/http';
-import { offsetNow, formatPickupTime } from '../shared/utils/date.utils';
-import { Subscription, Observable } from 'rxjs';
-import { map, startWith } from 'rxjs/operators';
+import { offsetNow, formatPickupTime, formatDateForInput } from '../shared/utils/date.utils';
+import { Subscription, Observable, of } from 'rxjs';
+import { map, startWith, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface TransportMode {
@@ -68,6 +69,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   loading = false;
   submitting = false;
   facilityAddress: string | null = null;
+  pickupSuggestions: AddressSuggestion[] = [];
+  destinationSuggestions: AddressSuggestion[] = [];
   private subscriptions = new Subscription();
 
   readonly transportModes: TransportMode[] = [
@@ -113,6 +116,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     private router: Router,
     private rideService: RideService,
     private residentService: ResidentService,
+    private geocodeService: GeocodeService,
     private auth: AuthService,
     private http: HttpClient,
     private snackBar: MatSnackBar
@@ -131,6 +135,18 @@ export class BookingComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadResidents();
     this.loadFacilityAddress();
+    this.watchAddressField('pickupAddress', suggestions => this.pickupSuggestions = suggestions);
+    this.watchAddressField('destinationAddress', suggestions => this.destinationSuggestions = suggestions);
+  }
+
+  private watchAddressField(controlName: string, onResults: (suggestions: AddressSuggestion[]) => void): void {
+    this.subscriptions.add(
+      this.bookingForm.get(controlName)!.valueChanges.pipe(
+        debounceTime(350),
+        distinctUntilChanged(),
+        switchMap(value => (value?.trim()?.length ?? 0) >= 3 ? this.geocodeService.autocomplete(value) : of([]))
+      ).subscribe(suggestions => onResults(suggestions))
+    );
   }
 
   ngOnDestroy(): void {
@@ -187,15 +203,23 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   setQuickTime(qt: QuickTime): void {
     const { date, time } = offsetNow(qt.offsetMinutes);
-    this.bookingForm.patchValue({ pickupDate: new Date(date), pickupTime: time });
+    this.bookingForm.patchValue({ pickupDate: date, pickupTime: time });
   }
 
   getFormattedDateTime(): string {
     const date = this.bookingForm.get('pickupDate')?.value;
     const time = this.bookingForm.get('pickupTime')?.value as string;
     if (!date || !time) return '';
-    const iso = `${new Date(date).toISOString().split('T')[0]}T${time}:00`;
+    const iso = `${formatDateForInput(new Date(date))}T${time}:00`;
     return formatPickupTime(iso);
+  }
+
+  addressPrimary(displayName: string): string {
+    return displayName.split(',')[0].trim();
+  }
+
+  addressSecondary(displayName: string): string {
+    return displayName.split(',').slice(1).join(',').trim();
   }
 
   private _filterResidents(value: string): Resident[] {

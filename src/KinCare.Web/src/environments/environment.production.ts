@@ -2,6 +2,7 @@ export const environment = {
   production: true,
   apiUrl: 'http://localhost:5000',
   googleMapsApiKey: 'GOOGLE_MAPS_API_KEY_PLACEHOLDER',
+  locationIqApiKey: 'LOCATIONIQ_API_KEY_PLACEHOLDER',
   fcmVapidKey: 'FCM_VAPID_KEY_PLACEHOLDER',
   firebaseConfig: {
     apiKey: 'FIREBASE_API_KEY_PLACEHOLDER',

@@ -181,9 +181,11 @@ export class RideDetailComponent implements OnInit, OnDestroy {
 
   getStatusLabel(status: string): string {
     const labels: Record<string, string> = {
-      Dispatched: 'Dispatched', Confirmed: 'Confirmed', EnRoute: 'On the Way',
+      Dispatched: 'Awaiting Acceptance', Confirmed: 'Confirmed', EnRoute: 'On the Way',
       Arrived: 'At Facility', PickedUp: 'Picked Up', AtDestination: 'At Destination',
-      Dropped: 'Dropped Off', Completed: 'Completed', Cancelled: 'Cancelled',
+      Dropped: 'Dropped Off', AwaitingReturn: 'Awaiting Return Pickup',
+      ReturnEnRoute: 'Returning', ReturnPickedUp: 'Picked Up (Return)',
+      Completed: 'Completed', Cancelled: 'Cancelled',
     };
     return labels[status] || status;
   }
@@ -209,15 +211,18 @@ export class RideDetailComponent implements OnInit, OnDestroy {
     const t: Record<string, string[]> = {
       Dispatched: ['Confirmed'], Confirmed: ['EnRoute'],
       EnRoute: ['Arrived'], Arrived: ['PickedUp'], PickedUp: ['AtDestination'],
-      AtDestination: ['Dropped'], Dropped: ['Completed'],
+      AtDestination: ['Dropped'], Dropped: ['Completed', 'AwaitingReturn'],
+      AwaitingReturn: ['ReturnEnRoute'], ReturnEnRoute: ['ReturnPickedUp'],
+      ReturnPickedUp: ['Completed'],
     };
+    if (status === 'AwaitingReturn' && this.rideDetail.dispatchChannel !== 'SmsNemt') return false;
     return t[this.rideDetail.status]?.includes(status) ?? false;
   }
 
   canCancel(): boolean { return !this.isTerminal; }
 
   readonly statusSteps = [
-    { status: 'Dispatched',    label: 'Dispatched',      icon: 'schedule' },
+    { status: 'Dispatched',    label: 'Requested',       icon: 'schedule' },
     { status: 'Confirmed',     label: 'Confirmed',        icon: 'check_circle' },
     { status: 'EnRoute',       label: 'En Route',         icon: 'directions_car' },
     { status: 'Arrived',       label: 'At Facility',      icon: 'location_on' },
@@ -227,7 +232,7 @@ export class RideDetailComponent implements OnInit, OnDestroy {
     { status: 'Completed',     label: 'Completed',        icon: 'verified' },
   ];
 
-  private readonly statusOrder = ['Dispatched','Confirmed','EnRoute','Arrived','PickedUp','AtDestination','Dropped','Completed','Cancelled'];
+  private readonly statusOrder = ['Dispatched','Confirmed','EnRoute','Arrived','PickedUp','AtDestination','Dropped','AwaitingReturn','ReturnEnRoute','ReturnPickedUp','Completed','Cancelled'];
 
   isStatusPast(status: string): boolean {
     if (!this.rideDetail) return false;

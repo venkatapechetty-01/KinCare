@@ -179,6 +179,21 @@
           color: white;
         }
 
+        &.status-awaitingreturn {
+          background: #2196f3;
+          color: white;
+        }
+
+        &.status-returnenroute {
+          background: #ff9800;
+          color: white;
+        }
+
+        &.status-returnpickedup {
+          background: #e65100;
+          color: white;
+        }
+
         &.status-completed {
           background: #8bc34a;
           color: white;

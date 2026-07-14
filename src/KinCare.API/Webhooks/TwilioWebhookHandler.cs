@@ -9,15 +9,21 @@ namespace KinCare.API.Webhooks;
 
 public static class TwilioWebhookHandler
 {
-    // Replies after Accept: vendor can advance their own ride status
-    private static readonly Dictionary<int, RideStatus> PostAcceptReplyMap = new()
+    // Replies after Accept: vendor can advance their own ride status. Keyed on the
+    // ride's CURRENT status first, since digits are reused across the outbound and
+    // NEMT return legs (e.g. "3" means "on my way" on both legs) rather than having
+    // a fixed global meaning — a phone keypad only has 9 usable digits.
+    private static readonly Dictionary<RideStatus, Dictionary<int, RideStatus>> PostAcceptReplyMap = new()
     {
-        { 3, RideStatus.EnRoute       },  // On my way to facility
-        { 4, RideStatus.Arrived       },  // Reached facility
-        { 5, RideStatus.PickedUp      },  // Resident picked up
-        { 6, RideStatus.AtDestination },  // At destination
-        { 7, RideStatus.Dropped       },  // Resident dropped off
-        { 8, RideStatus.Completed     },  // Trip complete
+        { RideStatus.Confirmed,      new() { { 3, RideStatus.EnRoute } } },        // On my way to facility
+        { RideStatus.EnRoute,        new() { { 4, RideStatus.Arrived } } },        // Reached facility
+        { RideStatus.Arrived,        new() { { 5, RideStatus.PickedUp } } },       // Resident picked up
+        { RideStatus.PickedUp,       new() { { 6, RideStatus.AtDestination } } },  // At destination
+        { RideStatus.AtDestination,  new() { { 7, RideStatus.Dropped } } },        // Resident dropped off
+        { RideStatus.Dropped,        new() { { 8, RideStatus.Completed } } },      // Trip complete (one-way)
+        { RideStatus.AwaitingReturn, new() { { 3, RideStatus.ReturnEnRoute } } },  // On my way back
+        { RideStatus.ReturnEnRoute,  new() { { 5, RideStatus.ReturnPickedUp } } }, // Resident picked up for return
+        { RideStatus.ReturnPickedUp, new() { { 8, RideStatus.Completed } } },      // Trip complete (round trip)
     };
 
     public static void MapTwilioWebhook(this IEndpointRouteBuilder app)
@@ -138,8 +144,10 @@ public static class TwilioWebhookHandler
             return Results.Ok();
         }
 
-        // ── Replies 3-5: Post-accept status updates ───────────────────────────
-        if (PostAcceptReplyMap.TryGetValue(replyDigit, out var newStatus))
+        // ── Replies 3-8: Post-accept status updates ───────────────────────────
+        // The ride must be loaded first since the digit's meaning now depends on
+        // the ride's current status (see PostAcceptReplyMap).
+        if (replyDigit is >= 3 and <= 8)
         {
             var ride = await db.Rides
                 .Where(r => r.VendorId == vendor.Id
@@ -155,8 +163,16 @@ public static class TwilioWebhookHandler
                 return Results.Ok();
             }
 
+            if (!PostAcceptReplyMap.TryGetValue(ride.Status, out var digitMap) ||
+                !digitMap.TryGetValue(replyDigit, out var newStatus))
+            {
+                logger.LogWarning("Reply digit {Digit} has no meaning for ride {RideId} in status {Status}",
+                    replyDigit, ride.Id, ride.Status);
+                return Results.Ok();
+            }
+
             var stateMachine = new RideStateMachine();
-            if (!stateMachine.CanTransition(ride.Status, newStatus))
+            if (!stateMachine.CanTransition(ride.Status, newStatus, ride.DispatchChannel))
             {
                 logger.LogWarning("Invalid transition {From} → {To} for ride {RideId}", ride.Status, newStatus, ride.Id);
                 return Results.Ok();

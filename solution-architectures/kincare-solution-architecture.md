@@ -41,7 +41,7 @@ External integrations include Twilio (bidirectional SMS), Firebase Cloud Messagi
 - Coordinator-first, mobile-first — every action completable in three taps at 390px
 - Vendors interact via SMS only — zero onboarding required on their side
 - Adaptive dispatch: SMS for basic/NEMT vendors, Uber Health for ambulatory on Professional plan, broker fallback
-- Strict 9-state machine (Dispatched → Confirmed → EnRoute → Arrived → PickedUp → AtDestination → Dropped → Completed / Cancelled) with time-based automated escalation
+- Strict 12-state machine (Dispatched → Confirmed → EnRoute → Arrived → PickedUp → AtDestination → Dropped → Completed / Cancelled, plus an SmsNemt-only round-trip branch: Dropped → AwaitingReturn → ReturnEnRoute → ReturnPickedUp → Completed) with time-based automated escalation
 - Multi-tenant isolation enforced at PostgreSQL row level and EF Core global query filters
 - Stripe subscription billing with 14-day free trial and webhook-driven plan enforcement
 
@@ -84,7 +84,7 @@ KinCare replaces that entire workflow with a structured, real-time coordination 
 - Vendor management (type, dispatch method, capability tier)
 - Ride booking with DispatchRouter — auto-routes to correct channel
 - Bidirectional Twilio SMS: outbound dispatch + inbound numbered reply processing (1–9)
-- Ride state machine: 9 states, all transitions enforced
+- Ride state machine: 12 states (incl. SmsNemt-only round-trip branch), all transitions enforced
 - Broadcast dispatch model — all capable vendors notified, first to claim wins
 - Automated time-based escalation via Hangfire (SMS channels only)
 - FCM push notifications to coordinator for arrivals, drops, escalations
@@ -177,14 +177,15 @@ KinCare uses a **layered monolith** architecture — a deliberate choice for a f
 **Key Features Implemented:**
 
 - Today's ride dashboard with live status cards (GSAP entry animations, skeleton loading)
+- Upcoming Rides section on the dashboard — future-dated bookings, separate from Today's Rides
 - SignalR WebSocket connection — ride cards update in real-time without page reload
-- Ride booking flow (bottom sheet): resident, pickup time, addresses, optional vendor preference
+- Ride booking flow (bottom sheet): resident, pickup time, addresses (LocationIQ autocomplete), optional vendor preference
 - FCM push notification registration and service worker management
-- Live GPS map rendering for smart vendor rides (Google Maps JS)
-- Ride detail view with full event timeline and status advancement buttons
+- Live GPS map (Leaflet.js + LocationIQ tiles) — status-colored moving pins with resident/vendor photo, reachable from a "View Live Location" button on the Dashboard and Ride Detail pages
+- Ride detail view with full event timeline and status advancement buttons, incl. "Call for Return Pickup" for SmsNemt round trips
 - Residents management: list, create, edit, deactivate, paginated (12/page)
 - Vendors management: list, create (with phone dedup), edit, deactivate
-- Ride history: paginated table, date/status/channel filters, CSV export
+- Ride history: paginated table, date/status/channel filters, CSV export — only shows rides whose pickup time has already passed (future-dated rides live on the Dashboard's Upcoming Rides section instead)
 - OrgAdmin section: facilities, coordinator management, org metrics
 - Billing page: current plan, usage, Stripe portal link, upgrade modal
 - Auth flow: login, registration, accept-invite, JWT + refresh token rotation
@@ -198,7 +199,8 @@ KinCare uses a **layered monolith** architecture — a deliberate choice for a f
 - Animations: GSAP (card animations), ngx-lottie v9.1.0 (Lottie player)
 - Real-time: `@microsoft/signalr` ^10.0.0 — `HubConnection` in dashboard component
 - Push Notifications: Firebase JS SDK + Angular Service Worker
-- Maps: Google Maps JavaScript API (conditional — smart vendors only)
+- Maps: Leaflet.js + LocationIQ raster tiles (no billing account required, unlike Google Maps JS API which it replaced)
+- Address autocomplete: LocationIQ Autocomplete API, proxied through the backend (`GeocodeEndpoints`) so the key never reaches the browser for that call
 - Auth: JWT in localStorage + refresh token rotation
 - Validation: Zod v4.4.3 (`api.schemas.ts` — runtime API response validation)
 - Styling: Angular Material (mobile-first, 390px primary breakpoint)
@@ -228,7 +230,7 @@ KinCare uses a **layered monolith** architecture — a deliberate choice for a f
 
 **Key Services:**
 
-- `RideStateMachine` — enforces 9-state transition map; rejects invalid transitions
+- `RideStateMachine` — enforces 12-state transition map (incl. SmsNemt-only round-trip branch); rejects invalid transitions
 - `DispatchRouter` — routes rides to correct channel (SmsNemt / SmsTaxi / UberHealth / Broker)
 - `RideService` — booking, status advancement, SignalR broadcast on every transition
 - `TwilioDispatchService` — outbound SMS (both SmsNemt and SmsTaxi channels)
@@ -245,8 +247,9 @@ KinCare uses a **layered monolith** architecture — a deliberate choice for a f
 - `OnboardingEndpoints` — register org, invite coordinator, accept invite
 - `ResidentEndpoints` — CRUD (facility-scoped)
 - `VendorEndpoints` — CRUD with plan gate for UberHealth vendors
-- `RideEndpoints` — today's rides, book, detail, advance status, cancel, redispatch, history, CSV export
+- `RideEndpoints` — today's rides, upcoming rides, book, detail, advance status, cancel, redispatch, history, CSV export
 - `TrackingEndpoints` — public tracking page, GPS update, status advance from tracking page
+- `GeocodeEndpoints` — LocationIQ-backed address autocomplete proxy for the booking form
 - `DeviceEndpoints` — FCM token registration
 - `OrgAdminEndpoints` — facilities, users, invitations, metrics
 - `BillingEndpoints` — subscribe, portal URL, current plan
@@ -462,11 +465,21 @@ EnRoute     → Arrived       (vendor SMS reply 4 / tracking_page / uber_webhook
 Arrived     → PickedUp      (vendor SMS reply 5 / tracking_page / uber_webhook)
 PickedUp    → AtDestination (vendor SMS reply 6 / tracking_page / uber_webhook)
 AtDestination → Dropped     (vendor SMS reply 7 / tracking_page / uber_webhook)
-Dropped     → Completed     (coordinator only)
+Dropped     → Completed     (coordinator only, all channels)
 Any state   → Cancelled     (coordinator only)
+
+// Round-trip return leg — SmsNemt only. Entered only via the coordinator-triggered
+// Dropped → AwaitingReturn edge; every other channel goes straight to Completed.
+Dropped        → AwaitingReturn  (coordinator only — "Call for Return Pickup")
+AwaitingReturn → ReturnEnRoute   (vendor SMS reply 3 / tracking_page)
+ReturnEnRoute  → ReturnPickedUp  (vendor SMS reply 5 / tracking_page)
+ReturnPickedUp → Completed       (vendor SMS reply 8 / tracking_page)
 ```
 
 ### 4.3 SMS Reply Map
+
+Digits are reused across the outbound and return legs — a phone keypad only has 9 usable
+digits, so meaning is keyed on the ride's *current* status, not a fixed global mapping.
 
 | Reply | Meaning | Transition |
 |---|---|---|
@@ -479,6 +492,13 @@ Any state   → Cancelled     (coordinator only)
 | 7 | Dropped Safely | AtDestination → Dropped |
 | 8 | Completed | Dropped → Completed |
 | 9 | Issue / Need Help | No status change — FCM alert to coordinator |
+| 3 | On My Way Back (return leg) | AwaitingReturn → ReturnEnRoute |
+| 5 | Resident Picked Up (return leg) | ReturnEnRoute → ReturnPickedUp |
+| 8 | Trip Complete (return leg) | ReturnPickedUp → Completed |
+
+An out-of-context digit for the ride's current status (e.g. "4" while `AwaitingReturn`) is a
+safe no-op — logged and acknowledged with `200 OK`, no state change, same as any unrecognized
+reply.
 
 ### 4.4 Dispatch Channel Routing
 
@@ -507,7 +527,8 @@ else
 | Uber Health API | Outbound REST + Inbound Webhook | Ambulatory ride dispatch (Professional+) | OAuth2 client credentials |
 | Roundtrip Health | Outbound REST + Inbound Webhook | NEMT broker fallback (Professional+) | API key |
 | Stripe | Outbound REST + Inbound Webhook | Subscription billing | API key; Stripe-Signature on inbound |
-| Google Maps JS | Client-side SDK | Navigation deeplinks + live GPS map | API key (frontend only) |
+| LocationIQ | Outbound REST (autocomplete, server-side) + client-side map tiles | Booking-form address autocomplete + Live Map (Leaflet) tile rendering | API key |
+| Google Maps (deeplinks only) | Client-side URL, no SDK | `maps.google.com/dir/?...` navigation links on the public driver tracking page | None (public URL) |
 | SignalR | Server-push WebSocket | Real-time dashboard updates | JWT via query string |
 
 ### 5.2 Webhook Security
@@ -596,7 +617,7 @@ Terminal 3: ngrok http 5000                             → public HTTPS for Twi
 
 **Angular `environment.development.ts`:**
 ```typescript
-{ apiUrl: 'http://localhost:5000', googleMapsApiKey: '' }  // fill in Maps key
+{ apiUrl: 'http://localhost:5000', googleMapsApiKey: '', locationIqApiKey: '' }  // fill in LocationIQ key for autocomplete + live map tiles
 ```
 
 ### 7.2 Production Deployment (TBD)
@@ -640,13 +661,13 @@ Terminal 3: ngrok http 5000                             → public HTTPS for Twi
 **Status:** Accepted. Replaces Supabase. Full schema control, no vendor lock-in, any hosted Postgres works for production. RLS policies replicate Supabase tenant isolation natively.
 
 ### ADR-003: Numbered SMS Replies (1–9) over Keyword Replies
-**Status:** Accepted. Single-digit replies work on any phone including basic flip phones. Zero driver training needed. Reply map expanded to 9 entries to cover the full 9-state machine.
+**Status:** Accepted. Single-digit replies work on any phone including basic flip phones. Zero driver training needed. Reply map uses all 9 usable keypad digits; the round-trip extension (ADR-009) reuses digits 3/5/8 rather than introducing new ones, since 9 is the practical ceiling.
 
 ### ADR-004: Adaptive Vendor Tiers (Basic SMS | Smart Smartphone)
 **Status:** Accepted. `capability_tier` on vendor record. Smart vendors receive tokenized tracking URL. Both tiers produce identical immutable audit trails.
 
-### ADR-005: Strict 9-State Ride Machine with Escalation
-**Status:** Accepted and extended. Original 6-state machine expanded to 9 states to support the full `PickedUp → AtDestination` care custody chain required by senior living compliance. Escalation fires only on SMS channels — never Uber/Broker (those platforms manage their own escalation).
+### ADR-005: Strict State Ride Machine with Escalation
+**Status:** Accepted and extended twice. Original 6-state machine expanded to 9 states to support the full `PickedUp → AtDestination` care custody chain required by senior living compliance, then to 12 states (ADR-009) to support SmsNemt round trips. Escalation fires only on SMS channels — never Uber/Broker (those platforms manage their own escalation).
 
 ### ADR-006: Broadcast Dispatch Model
 **Status:** Accepted. All capable vendors notified simultaneously via `RideDispatchOffer` table. First to reply "1" claims the ride via a DB transaction (`ClaimRideAsync`). Prevents exclusive single-vendor SMS with no fallback.
@@ -656,6 +677,12 @@ Terminal 3: ngrok http 5000                             → public HTTPS for Twi
 
 ### ADR-008: Multi-Tenant B2B SaaS with Stripe Billing
 **Status:** Accepted. Organization → Facility hierarchy. Three plan tiers with `IPlanGate` enforcement at API layer only (never trust Angular for plan gates). Stripe webhooks drive org active/inactive state.
+
+### ADR-009: SmsNemt Round-Trip Extension via State Machine, Not a Second Ride
+**Status:** Accepted. NEMT vendors frequently wait and drive the resident back (hospital → facility). Modeled as an extension of the *same* ride's state machine (`Dropped → AwaitingReturn → ReturnEnRoute → ReturnPickedUp → Completed`) rather than creating a second linked ride, since the same vendor/vehicle typically handles both legs and a single ride record keeps the audit trail (`RideEvent`s) and tracking token contiguous. Gated to `DispatchChannel.SmsNemt` only — Uber Health, Broker, and taxi rides stay one-way. `AwaitingReturn` is coordinator-triggered only (a "Call for Return Pickup" button), never reachable via vendor SMS reply or the public tracking page, since the vendor can't know the resident is ready to leave the destination.
+
+### ADR-010: Leaflet.js + LocationIQ over Google Maps JS API
+**Status:** Accepted, replacing an earlier de facto choice of Google Maps JS API for the Live Map page. Google Maps JS API requires a billing-enabled Google Cloud project even within its free usage tier, which blocked local dev entirely (map never rendered, `ApiProjectMapError`). Leaflet.js is open-source with no billing requirement; LocationIQ (already integrated for address autocomplete) provides free-tier raster map tiles (5,000 requests/day) under the same account/key, avoiding a second third-party signup. The public driver tracking page's "Open in Google Maps" navigation deeplinks (plain URLs, no SDK) are unaffected and remain on Google Maps since they don't touch billing.
 
 ---
 
@@ -670,7 +697,7 @@ Terminal 3: ngrok http 5000                             → public HTTPS for Twi
 | Runtime Validation | Zod | 4.4.3 | ✅ Implemented |
 | Real-time (client) | @microsoft/signalr | ^10.0.0 | ✅ Implemented |
 | Push (client) | Firebase JS SDK | 10.x | ✅ Implemented |
-| Maps | Google Maps JS API | weekly | ⚠️ Key not configured |
+| Maps | Leaflet.js + LocationIQ tiles | leaflet ^1.9.4 | ✅ Implemented |
 | Backend Framework | .NET Minimal API | **9.x** | ✅ Implemented |
 | Auth | ASP.NET Core Identity | 9.x | ✅ Implemented |
 | ORM | Entity Framework Core | **9.x** + Npgsql | ✅ Implemented |
@@ -730,13 +757,14 @@ Terminal 3: ngrok http 5000                             → public HTTPS for Twi
 ### Critical
 
 - [ ] **Angular SignalR connection** — ✅ **DONE (2026-07-01)**: `dashboard.component.ts` now connects to `/hubs/ride-status`, handles `RideStatusChanged` and `LocationUpdated`, calls `hubConnection.stop()` on destroy
-- [ ] **E2E test suite** — 7 Playwright spec files exist (`auth.spec.ts`, `billing.spec.ts`, `residents.spec.ts`, `rides.spec.ts`, `vendors.spec.ts`, `health.spec.ts`, `auth-debug.spec.ts`) but have **never been run**. Require `E2E_TEST_EMAIL` + `E2E_TEST_PASSWORD` env vars and a running server.
+- [x] **E2E test suite** — ✅ **Actually run for the first time (2026-07-14)**, and it caught real bugs the "never been run" status had been hiding: (1) every ride status-transition test sent `{ status, triggeredBy }` in the request body, but `AdvanceStatusRequest` actually binds `{ newStatus, notes }` — every transition silently defaulted to enum value 0 (`Dispatched`), so `Dispatched → Confirmed` tests were actually asserting `Dispatched → Dispatched` and passing for the wrong reason (or failing with a confusing 400 once round-trip tests exposed it); (2) `GET /api/rides/history` test asserted `{ items, totalCount }` but the real `HistoryResponse` shape is `{ rides, total, page, pageSize }`; (3) a test asserting "booking without `residentId` returns 400" was simply wrong — `ResidentId` is intentionally nullable (`BookRideRequestValidator` explicitly allows `null`) — fixed to assert 201, replaced with a real required-field case instead. All three are now fixed. Added 2 new spec files (`settings.spec.ts`, `live-map.spec.ts`) plus round-trip NEMT, Upcoming Rides, history date-filtering, and booking-autocomplete coverage to `rides.spec.ts`. Also fixed a structural gap: `POST /api/auth/login` is rate-limited to 5/min/IP, and any spec file with more than 5 `loginViaUI` calls would genuinely fail in CI — added `useAuthToken()` (seeds the JWT into `localStorage` via `page.addInitScript`, one `loginViaAPI` call per file instead of one per test) and migrated the busiest files to it, keeping one real `loginViaUI` smoke test per file to still exercise the actual login form.
 
 ### High
 
 - [ ] **`ExternalTripSyncJob` HTTP polling** — job is scheduled every 2 minutes but only logs; no actual Uber Health or Roundtrip Health API calls. If a webhook is missed, Uber/Broker ride status will stall. Must implement real HTTP polling calls for rides where `external_trip_id IS NOT NULL` and status is not terminal.
 - [ ] **FCM end-to-end on real device** — `firebase-service-account.json` path must be configured in `appsettings.Development.json`; push notifications unverified on iOS/Android hardware.
-- [ ] **Google Maps API key** — `environment.development.ts` has empty `googleMapsApiKey`; live map on dashboard and tracking page will not render until filled in.
+- [x] **Live map rendering** — ✅ **DONE (2026-07-14)**: rearchitected from Google Maps JS API (required a billing-enabled Google Cloud account) to Leaflet.js + LocationIQ raster tiles. Fixed a real bug in the process — the map canvas `<div>` was only ever mounted when at least one GPS-active ride existed, so `@ViewChild` was `undefined` at init and the map silently never rendered; restructured the template so the canvas is always present. Also required `map.invalidateSize()` after the flex layout settles (Leaflet, unlike Google Maps, doesn't auto-detect container resizes) — markers were rendering thousands of pixels off-screen without it.
+- [ ] **`LocationIq__ApiKey` not yet in `render.yaml`** — works locally via `appsettings.Development.json`, but the Render blueprint's `kincare-api` service has no `LocationIq__ApiKey` env var entry yet, and the `kincare-web` build has no mechanism to inject a production `locationIqApiKey` into the bundle (see `LOCATIONIQ_API_KEY_PLACEHOLDER` gap in `environment.production.ts`). Must be added before this works in production.
 
 ### Medium
 
@@ -817,7 +845,10 @@ The layered monolith scales vertically to several hundred facilities. Natural de
 | State machine | `src/KinCare.API/Services/RideStateMachine.cs` |
 | SignalR hub | `src/KinCare.API/Hubs/RideStatusHub.cs` |
 | Tracking page | `src/KinCare.API/Endpoints/TrackingEndpoints.cs` |
+| Address autocomplete proxy | `src/KinCare.API/Endpoints/GeocodeEndpoints.cs`, `src/KinCare.API/Services/GeocodingService.cs` |
 | Angular dashboard | `src/KinCare.Web/src/app/dashboard/` |
+| Angular live map (Leaflet) | `src/KinCare.Web/src/app/live-map/` |
+| Angular booking (address autocomplete) | `src/KinCare.Web/src/app/booking/`, `src/KinCare.Web/src/app/shared/services/geocode.service.ts` |
 | Angular auth service | `src/KinCare.Web/src/app/shared/auth/auth.service.ts` |
 | Zod schemas | `src/KinCare.Web/src/app/shared/schemas/api.schemas.ts` |
 | Unit tests | `src/KinCare.Tests/` |
@@ -830,6 +861,7 @@ The layered monolith scales vertically to several hundred facilities. Natural de
 |---|---|---|---|
 | 1.0 | 2026-06-26 | JVincent1 | Initial architecture — local PostgreSQL, adaptive SMS tiers, FCM push, Hangfire escalation |
 | 2.0 | 2026-07-01 | JVincent1 | Major update: .NET 9, multi-tenant B2B SaaS, 9-state machine (PickedUp + AtDestination), broadcast dispatch model, Stripe billing, Uber Health + Broker, SignalR real-time dashboard, 256 tests passing, full feature build status, TODO section |
+| 2.1 | 2026-07-14 | Claude | Round-trip NEMT rides (12-state machine, `AwaitingReturn`/`ReturnEnRoute`/`ReturnPickedUp`, digit reuse on SMS replies); LocationIQ address autocomplete on booking form (new `GeocodeEndpoints`); Live Map rearchitected from Google Maps JS API to Leaflet.js + LocationIQ tiles (fixed a real bug where the map never rendered); Dashboard "Upcoming Rides" section (`GET /api/rides/upcoming`); Ride History now excludes future-dated rides; status label "Dispatched" now displays as "Awaiting Acceptance"; profile photo display bug fixed; responsive sidenav fixed (was permanently pinned open on mobile, unusable below ~900px) |
 
 ---
 Generated by Rocket Flow · 2.0.16 · 2026-07-01

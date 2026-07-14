@@ -38,10 +38,10 @@ export function formatTimeForInput(date: Date): string {
   return format(date, 'HH:mm');
 }
 
-export function offsetNow(offsetMinutes: number): { date: string; time: string } {
+export function offsetNow(offsetMinutes: number): { date: Date; time: string } {
   const d = addMinutes(new Date(), offsetMinutes);
   return {
-    date: formatDateForInput(d),
+    date: d,
     time: formatTimeForInput(d),
   };
 }

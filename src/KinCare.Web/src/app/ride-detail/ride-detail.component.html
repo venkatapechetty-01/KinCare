@@ -119,6 +119,10 @@
               <mat-icon>access_time</mat-icon>
               {{ getLastSeenLabel() }}
             </span>
+            <a mat-raised-button color="primary" class="view-live-map-btn"
+               [routerLink]="['/live-map']" [queryParams]="{ rideId: rideDetail.id }">
+              <mat-icon>satellite_alt</mat-icon> View Live Location
+            </a>
             <button mat-stroked-button class="copy-link-btn" (click)="copyTrackingLink()" matTooltip="Share tracking link">
               <mat-icon>share</mat-icon> Share Link
             </button>
@@ -203,6 +207,24 @@
             <button mat-raised-button color="primary" (click)="advanceStatus('Dropped')">
               <mat-icon>done</mat-icon>
               Mark as Dropped Off
+            </button>
+          }
+          @if (canAdvanceTo('AwaitingReturn')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('AwaitingReturn')">
+              <mat-icon>swap_horiz</mat-icon>
+              Call for Return Pickup
+            </button>
+          }
+          @if (canAdvanceTo('ReturnEnRoute')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('ReturnEnRoute')">
+              <mat-icon>directions_car</mat-icon>
+              Mark as Returning
+            </button>
+          }
+          @if (canAdvanceTo('ReturnPickedUp')) {
+            <button mat-raised-button color="primary" (click)="advanceStatus('ReturnPickedUp')">
+              <mat-icon>person</mat-icon>
+              Mark as Picked Up (Return)
             </button>
           }
           @if (canAdvanceTo('Completed')) {

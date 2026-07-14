@@ -229,7 +229,10 @@
     }
 
     .vendors-grid {
-      grid-template-columns: 1fr;
+      // grid-template-columns:1fr can lose the cascade against auto-fill/minmax(450px,...)
+      // even at matching specificity — flex sidesteps it and reliably fits the viewport.
+      display: flex !important;
+      flex-direction: column !important;
       gap: 1.5rem;
     }
   }

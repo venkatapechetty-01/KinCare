@@ -54,6 +54,9 @@
   "GoogleMaps": {
     "ApiKey": "YOUR_GOOGLE_MAPS_EMBED_API_KEY"
   },
+  "LocationIq": {
+    "ApiKey": "YOUR_LOCATIONIQ_API_KEY"
+  },
   "Splunk": {
     "HecUrl": "https://your-splunk-host:8088/services/collector",
     "HecToken": "YOUR_HEC_TOKEN"

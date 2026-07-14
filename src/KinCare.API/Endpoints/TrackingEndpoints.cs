@@ -35,6 +35,10 @@ public static class TrackingEndpoints
         new(RideStatus.PickedUp,      "👤", "Picked Up",        "Resident is in the vehicle",   "#e65100"),
         new(RideStatus.AtDestination, "🏥", "At Destination",   "Arrived at destination",       "#2e7d32"),
         new(RideStatus.Dropped,       "✅", "Dropped Off",      "Resident dropped off safely",  "#00695c"),
+        // Return leg — NEMT round trips only. AwaitingReturn is deliberately absent
+        // here: it's coordinator-triggered, never a driver-facing stage/one-tap action.
+        new(RideStatus.ReturnEnRoute,  "🔄", "Returning",            "I'm on my way back",         "#1565c0"),
+        new(RideStatus.ReturnPickedUp, "👤", "Picked Up (Return)",   "Resident is in the vehicle",  "#e65100"),
         new(RideStatus.Completed,     "🏁", "Trip Complete",    "Trip is complete",             "#37474f"),
     ];
 
@@ -200,7 +204,7 @@ public static class TrackingEndpoints
         var currentStageIndex = Array.FindIndex(Stages, s => s.Status == ride.Status);
         if (currentStageIndex < 0) currentStageIndex = -1;
 
-        var nextStage = RideStateMachine.NextTrackingStatus(ride.Status);
+        var nextStage = RideStateMachine.NextTrackingStatus(ride.Status, ride.DispatchChannel);
         var nextStageInfo = nextStage.HasValue
             ? Array.Find(Stages, s => s.Status == nextStage.Value)
             : null;

@@ -202,7 +202,7 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
             e.Property(r => r.DestinationAddress).HasMaxLength(500).IsRequired();
             e.Property(r => r.ExternalTripId).HasMaxLength(200);
             e.Property(r => r.TrackingToken).HasMaxLength(100);
-            e.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(r => r.Status).HasConversion<string>().HasMaxLength(30);
             e.Property(r => r.DispatchChannel).HasConversion<string>().HasMaxLength(20);
 
             e.HasOne(r => r.Facility)
@@ -250,8 +250,8 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
             e.HasKey(re => re.Id);
             e.Property(re => re.TriggeredBy).HasMaxLength(100).IsRequired();
             e.Property(re => re.Notes).HasMaxLength(1000);
-            e.Property(re => re.FromStatus).HasConversion<string>().HasMaxLength(20);
-            e.Property(re => re.ToStatus).HasConversion<string>().HasMaxLength(20);
+            e.Property(re => re.FromStatus).HasConversion<string>().HasMaxLength(30);
+            e.Property(re => re.ToStatus).HasConversion<string>().HasMaxLength(30);
 
             e.HasOne(re => re.Ride)
                 .WithMany(r => r.Events)
@@ -331,7 +331,9 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
         {
             e.ToTable("ride_dispatch_offers");
             e.HasKey(o => o.Id);
-            e.Property(o => o.Status).HasMaxLength(20).IsRequired();
+            // "Pending" is combined with a tracking token for Smart vendors, e.g.
+            // "Pending|token:{32-char guid}" — needs more than a plain status name.
+            e.Property(o => o.Status).HasMaxLength(64).IsRequired();
 
             e.HasOne(o => o.Ride)
                 .WithMany()

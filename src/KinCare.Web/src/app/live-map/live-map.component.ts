@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+import * as L from 'leaflet';
 import { SignalRService, LocationUpdatedEvent, RideStatusChangedEvent } from '../shared/services/signalr.service';
 import { ApiService } from '../shared/services/api.service';
 import { AuthService } from '../shared/auth/auth.service';
@@ -16,8 +16,7 @@ import { Subscription } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 interface MapMarkerState {
-  marker: google.maps.Marker;
-  infoWindow: google.maps.InfoWindow;
+  marker: L.Marker;
   rideId: string;
 }
 
@@ -45,9 +44,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   mapReady = false;
   focusedRideId: string | null = null;
 
-  private map: google.maps.Map | null = null;
+  private map: L.Map | null = null;
   private markers = new Map<string, MapMarkerState>();
-  private openInfoWindow: google.maps.InfoWindow | null = null;
+  private openMarker: L.Marker | null = null;
   private subs = new Subscription();
 
   constructor(
@@ -117,38 +116,44 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
-    this.markers.forEach(m => m.marker.setMap(null));
+    this.markers.forEach(m => m.marker.remove());
     this.markers.clear();
+    this.map?.remove();
   }
 
-  private async initMap(): Promise<void> {
-    setOptions({
-      key: environment.googleMapsApiKey || '',
-      v: 'weekly',
-    });
-
+  private initMap(): void {
     try {
-      await importLibrary('maps');
-      this.map = new google.maps.Map(this.mapCanvas.nativeElement, {
-        center: { lat: 42.5, lng: -83.2 }, // Michigan center
+      this.map = L.map(this.mapCanvas.nativeElement, {
+        center: [42.5, -83.2], // Michigan center
         zoom: 10,
-        mapTypeId: 'roadmap',
-        disableDefaultUI: false,
         zoomControl: true,
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: true,
-        styles: [
-          { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-          { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
-        ],
       });
+
+      L.tileLayer(
+        `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${environment.locationIqApiKey}`,
+        {
+          attribution: '&copy; <a href="https://locationiq.com/">LocationIQ</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          subdomains: ['a', 'b', 'c'],
+          maxZoom: 19,
+        }
+      ).addTo(this.map);
+
       this.mapReady = true;
-      // Place markers for any rides already loaded
-      this.rides.forEach(r => this.addOrUpdateMarker(r));
-      if (this.rides.length > 0) this.fitMapToMarkers();
+
+      // Leaflet computes marker/tile pixel positions from the container's size at the
+      // moment it's created — unlike Google Maps, it does NOT watch for later resizes.
+      // The container is sized by a CSS flex layout that may not have finished settling
+      // in the same tick, so invalidateSize() (deferred a frame) re-reads the real size
+      // and re-anchors the map; skipping this leaves every marker positioned thousands of
+      // pixels off-screen.
+      setTimeout(() => {
+        this.map?.invalidateSize();
+        // Place markers for any rides already loaded
+        this.rides.forEach(r => this.addOrUpdateMarker(r));
+        if (this.rides.length > 0) this.fitMapToMarkers();
+      });
     } catch (e) {
-      console.error('[LiveMap] Google Maps failed to load:', e);
+      console.error('[LiveMap] Map failed to load:', e);
     }
   }
 
@@ -165,6 +170,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.loading = false;
 
         if (this.mapReady) {
+          this.map?.invalidateSize();
           this.rides.forEach(r => this.addOrUpdateMarker(r));
           this.fitMapToMarkers();
         }
@@ -176,12 +182,12 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   selectRide(ride: ActiveRideLocation): void {
     this.selectedRide = ride;
     this.panToRide(ride);
-    // Open the info window for this marker
+    // Open the popup for this marker
     const state = this.markers.get(ride.id);
     if (state) {
-      this.openInfoWindow?.close();
-      state.infoWindow.open(this.map!, state.marker);
-      this.openInfoWindow = state.infoWindow;
+      this.openMarker?.closePopup();
+      state.marker.openPopup();
+      this.openMarker = state.marker;
     }
   }
 
@@ -191,7 +197,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private panToRide(ride: ActiveRideLocation): void {
     if (this.map && ride.lat && ride.lng) {
-      this.map.panTo({ lat: ride.lat, lng: ride.lng });
+      this.map.panTo([ride.lat, ride.lng]);
       this.map.setZoom(15);
     }
   }
@@ -202,65 +208,56 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.panToRide(this.rides[0]);
       return;
     }
-    const bounds = new google.maps.LatLngBounds();
-    this.rides.forEach(r => bounds.extend({ lat: r.lat, lng: r.lng }));
-    this.map.fitBounds(bounds, 80);
+    const bounds = L.latLngBounds(this.rides.map(r => [r.lat, r.lng] as L.LatLngTuple));
+    this.map.fitBounds(bounds, { padding: [80, 80] });
   }
 
   private addOrUpdateMarker(ride: ActiveRideLocation): void {
     if (!this.map) return;
     const existing = this.markers.get(ride.id);
     if (existing) {
-      existing.marker.setPosition({ lat: ride.lat, lng: ride.lng });
+      existing.marker.setLatLng([ride.lat, ride.lng]);
       existing.marker.setIcon(this.buildIcon(ride));
-      existing.infoWindow.setContent(this.buildInfoWindowContent(ride));
+      existing.marker.setPopupContent(this.buildPopupContent(ride));
       return;
     }
 
-    const marker = new google.maps.Marker({
-      position: { lat: ride.lat, lng: ride.lng },
-      map: this.map,
+    const marker = L.marker([ride.lat, ride.lng], {
       icon: this.buildIcon(ride),
       title: `${ride.residentName} · ${ride.vendorName ?? 'Unknown'}`,
-      animation: google.maps.Animation.DROP,
-    });
+    }).addTo(this.map);
 
-    const infoWindow = new google.maps.InfoWindow({
-      content: this.buildInfoWindowContent(ride),
-      maxWidth: 280,
-    });
+    marker.bindPopup(this.buildPopupContent(ride), { maxWidth: 280 });
 
-    marker.addListener('click', () => {
+    marker.on('click', () => {
       this.zone.run(() => {
-        this.openInfoWindow?.close();
-        infoWindow.open(this.map!, marker);
-        this.openInfoWindow = infoWindow;
+        this.openMarker?.closePopup();
+        this.openMarker = marker;
         this.selectedRide = ride;
       });
     });
 
-    this.markers.set(ride.id, { marker, infoWindow, rideId: ride.id });
+    this.markers.set(ride.id, { marker, rideId: ride.id });
   }
 
   private moveMarker(ride: ActiveRideLocation): void {
     const state = this.markers.get(ride.id);
     if (state) {
-      state.marker.setPosition({ lat: ride.lat, lng: ride.lng });
-      state.infoWindow.setContent(this.buildInfoWindowContent(ride));
+      state.marker.setLatLng([ride.lat, ride.lng]);
+      state.marker.setPopupContent(this.buildPopupContent(ride));
     } else {
       this.addOrUpdateMarker(ride);
     }
     // Smoothly follow if this is the selected ride
     if (this.selectedRide?.id === ride.id && this.map) {
-      this.map.panTo({ lat: ride.lat, lng: ride.lng });
+      this.map.panTo([ride.lat, ride.lng]);
     }
   }
 
   private removeMarker(rideId: string): void {
     const state = this.markers.get(rideId);
     if (state) {
-      state.infoWindow.close();
-      state.marker.setMap(null);
+      state.marker.remove();
       this.markers.delete(rideId);
     }
   }
@@ -270,17 +267,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (state) state.marker.setIcon(this.buildIcon(ride));
   }
 
-  private buildIcon(ride: ActiveRideLocation): google.maps.Icon | google.maps.Symbol {
+  private buildIcon(ride: ActiveRideLocation): L.Icon {
     // If vendor has a photo URL use circular photo pin, otherwise colored status dot
     const statusColor = this.getStatusHex(ride.status);
 
     if (ride.vendorPhotoUrl) {
-      // Photo pin: circular image with colored border
-      return {
-        url: this.buildPhotoPin(ride.vendorPhotoUrl, statusColor),
-        scaledSize: new google.maps.Size(52, 52),
-        anchor: new google.maps.Point(26, 26),
-      };
+      return L.icon({
+        iconUrl: this.buildPhotoPin(ride.vendorPhotoUrl, statusColor),
+        iconSize: [52, 52],
+        iconAnchor: [26, 26],
+      });
     }
 
     // Fallback: colored circle with initials (SVG data URL)
@@ -293,11 +289,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         <polygon points="24,50 18,38 30,38" fill="${statusColor}"/>
       </svg>`;
 
-    return {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-      scaledSize: new google.maps.Size(48, 56),
-      anchor: new google.maps.Point(24, 50),
-    };
+    return L.icon({
+      iconUrl: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      iconSize: [48, 56],
+      iconAnchor: [24, 50],
+    });
   }
 
   private buildPhotoPin(photoUrl: string, borderColor: string): string {
@@ -314,7 +310,7 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
   }
 
-  private buildInfoWindowContent(ride: ActiveRideLocation): string {
+  private buildPopupContent(ride: ActiveRideLocation): string {
     const photoHtml = ride.vendorPhotoUrl
       ? `<img src="${ride.vendorPhotoUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid ${this.getStatusHex(ride.status)}" />`
       : `<div style="width:44px;height:44px;border-radius:50%;background:${this.getStatusHex(ride.status)};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px">${this.getInitials(ride.vendorName ?? ride.residentName)}</div>`;

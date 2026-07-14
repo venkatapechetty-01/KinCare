@@ -78,6 +78,10 @@ export class RideService {
     return this.http.get<RideDto[]>(`${this.apiUrl}/today`);
   }
 
+  getUpcomingRides(): Observable<RideDto[]> {
+    return this.http.get<RideDto[]>(`${this.apiUrl}/upcoming`);
+  }
+
   bookRide(request: BookRideRequest): Observable<{ id: string; status: string; dispatchChannel: string; vendorId?: string }> {
     return this.http.post<{ id: string; status: string; dispatchChannel: string; vendorId?: string }>(this.apiUrl, request);
   }

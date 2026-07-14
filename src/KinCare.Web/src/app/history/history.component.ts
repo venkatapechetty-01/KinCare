@@ -78,7 +78,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
     'destinationAddress',
   ];
 
-  statuses = ['Dispatched', 'Confirmed', 'EnRoute', 'Arrived', 'PickedUp', 'AtDestination', 'Dropped', 'Completed', 'Cancelled'];
+  statuses = ['Dispatched', 'Confirmed', 'EnRoute', 'Arrived', 'PickedUp', 'AtDestination', 'Dropped', 'AwaitingReturn', 'ReturnEnRoute', 'ReturnPickedUp', 'Completed', 'Cancelled'];
   channels = ['SmsNemt', 'SmsTaxi', 'Broker'];
 
   private readonly apiUrl = `${environment.apiUrl}/api/rides/history`;
@@ -210,6 +210,17 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.router.navigate(['/rides', id]);
   }
 
+  getStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      Dispatched: 'Awaiting Acceptance', Confirmed: 'Confirmed', EnRoute: 'On the Way',
+      Arrived: 'At Facility', PickedUp: 'Picked Up', AtDestination: 'At Destination',
+      Dropped: 'Dropped Off', AwaitingReturn: 'Awaiting Return Pickup',
+      ReturnEnRoute: 'Returning', ReturnPickedUp: 'Picked Up (Return)',
+      Completed: 'Completed', Cancelled: 'Cancelled',
+    };
+    return labels[status] || status;
+  }
+
   getStatusClass(status: string): string {
     const statusMap: Record<string, string> = {
       Dispatched:    'status-dispatched',
@@ -219,6 +230,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
       PickedUp:      'status-pickedup',
       AtDestination: 'status-atdestination',
       Dropped:       'status-dropped',
+      AwaitingReturn:  'status-awaitingreturn',
+      ReturnEnRoute:   'status-returnenroute',
+      ReturnPickedUp:  'status-returnpickedup',
       Completed:     'status-completed',
       Cancelled:     'status-cancelled',
     };

@@ -6,6 +6,10 @@
   .mat-sidenav-content {
     margin-left: 240px !important;
   }
+
+  &.mobile-shell .mat-sidenav-content {
+    margin-left: 0 !important;
+  }
 }
 
 /* ── Toolbar ── */

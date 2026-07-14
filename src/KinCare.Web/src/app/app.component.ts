@@ -9,6 +9,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatBadgeModule } from '@angular/material/badge';
+import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { AuthService } from './shared/auth/auth.service';
 import { RideService } from './shared/services/ride.service';
 import { filter } from 'rxjs/operators';
@@ -39,10 +40,16 @@ export class AppComponent implements OnInit, OnDestroy {
   title = 'KinCare.Web';
   showShell = false;
   sidenavOpen = true;
+  isMobile = false;
   todayRideCount: number | null = null;
   private subs = new Subscription();
 
-  constructor(public auth: AuthService, private router: Router, private rideService: RideService) {}
+  constructor(
+    public auth: AuthService,
+    private router: Router,
+    private rideService: RideService,
+    private breakpointObserver: BreakpointObserver
+  ) {}
 
   ngOnInit(): void {
     this.router.events
@@ -53,6 +60,18 @@ export class AppComponent implements OnInit, OnDestroy {
         this.showShell = !ANON_ROUTES.some((r) => url.startsWith(r));
         if (this.showShell && wasAnon) this.startCountPolling();
       });
+
+    this.subs.add(
+      this.breakpointObserver.observe([Breakpoints.HandsetPortrait, Breakpoints.HandsetLandscape, Breakpoints.TabletPortrait])
+        .subscribe(result => {
+          this.isMobile = result.matches;
+          this.sidenavOpen = !this.isMobile;
+        })
+    );
+  }
+
+  closeSidenavOnMobile(): void {
+    if (this.isMobile) this.sidenavOpen = false;
   }
 
   ngOnDestroy(): void {

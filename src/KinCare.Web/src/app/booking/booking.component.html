@@ -162,8 +162,22 @@
           <mat-label>Pick-up Address</mat-label>
           <textarea matInput formControlName="pickupAddress"
                     placeholder="Full address including unit/suite number"
-                    rows="2" maxlength="500"></textarea>
+                    rows="2" maxlength="500"
+                    [matAutocomplete]="pickupAuto"></textarea>
           <mat-icon matPrefix>trip_origin</mat-icon>
+          <mat-autocomplete #pickupAuto="matAutocomplete" class="address-autocomplete-panel">
+            @for (s of pickupSuggestions; track s.displayName) {
+              <mat-option [value]="s.displayName">
+                <div class="address-row">
+                  <mat-icon class="address-pin">place</mat-icon>
+                  <div class="address-text">
+                    <span class="address-primary">{{ addressPrimary(s.displayName) }}</span>
+                    <span class="address-secondary">{{ addressSecondary(s.displayName) }}</span>
+                  </div>
+                </div>
+              </mat-option>
+            }
+          </mat-autocomplete>
           @if (bookingForm.get('pickupAddress')?.hasError('required') && bookingForm.get('pickupAddress')?.touched) {
             <mat-error>Pickup address is required</mat-error>
           }
@@ -180,8 +194,22 @@
           <mat-label>Drop-off Address</mat-label>
           <textarea matInput formControlName="destinationAddress"
                     placeholder="Full drop-off address"
-                    rows="2" maxlength="500"></textarea>
+                    rows="2" maxlength="500"
+                    [matAutocomplete]="destinationAuto"></textarea>
           <mat-icon matPrefix>place</mat-icon>
+          <mat-autocomplete #destinationAuto="matAutocomplete" class="address-autocomplete-panel">
+            @for (s of destinationSuggestions; track s.displayName) {
+              <mat-option [value]="s.displayName">
+                <div class="address-row">
+                  <mat-icon class="address-pin">place</mat-icon>
+                  <div class="address-text">
+                    <span class="address-primary">{{ addressPrimary(s.displayName) }}</span>
+                    <span class="address-secondary">{{ addressSecondary(s.displayName) }}</span>
+                  </div>
+                </div>
+              </mat-option>
+            }
+          </mat-autocomplete>
           @if (bookingForm.get('destinationAddress')?.hasError('required') && bookingForm.get('destinationAddress')?.touched) {
             <mat-error>Drop-off address is required</mat-error>
           }

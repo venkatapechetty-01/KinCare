@@ -5,6 +5,7 @@ using KinCare.API.Infrastructure;
 using KinCare.API.Services.Dispatch;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace KinCare.API.Services;
@@ -18,6 +19,7 @@ public class RideService
     private readonly TwilioDispatchService _twilioDispatch;
     private readonly AppConfig _appConfig;
     private readonly ILogger<RideService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public RideService(
         AppDbContext db,
@@ -26,7 +28,8 @@ public class RideService
         IHubContext<RideStatusHub> hubContext,
         TwilioDispatchService twilioDispatch,
         IOptions<AppConfig> appConfig,
-        ILogger<RideService> logger)
+        ILogger<RideService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _db = db;
         _stateMachine = stateMachine;
@@ -35,6 +38,7 @@ public class RideService
         _twilioDispatch = twilioDispatch;
         _appConfig = appConfig.Value;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task<Ride> BookRideAsync(
@@ -141,6 +145,12 @@ public class RideService
             var rideId = ride.Id;
             _ = Task.Run(async () =>
             {
+                // This runs after the HTTP response completes, so the request-scoped
+                // AppDbContext (_db) is already disposed — resolve a fresh one from a
+                // new DI scope for any database access in here.
+                using var scope = _scopeFactory.CreateScope();
+                var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
                 foreach (var v in vendors)
                 {
                     // Each Smart vendor gets their own unique tracking token in the SMS body
@@ -152,12 +162,12 @@ public class RideService
                         // Store the token on the offer so we can activate it if they accept
                         try
                         {
-                            var offer = await _db.RideDispatchOffers
+                            var offer = await scopedDb.RideDispatchOffers
                                 .FirstOrDefaultAsync(o => o.RideId == rideId && o.VendorId == v.Id);
                             if (offer is not null)
                             {
                                 offer.Status = $"Pending|token:{token}";
-                                await _db.SaveChangesAsync();
+                                await scopedDb.SaveChangesAsync();
                             }
                         }
                         catch (Exception ex) { _logger.LogError(ex, "Failed to store tracking token for offer"); }
@@ -315,7 +325,7 @@ public class RideService
                 rideId, ride.OrganizationId, requiredOrgId.Value);
             throw new UnauthorizedAccessException("Ride does not belong to your organization.");
         }
-        _stateMachine.Validate(ride.Status, newStatus);
+        _stateMachine.Validate(ride.Status, newStatus, ride.DispatchChannel);
 
         var fromStatus = ride.Status;
         ride.Status = newStatus;
@@ -349,6 +359,30 @@ public class RideService
             "AdvanceStatus complete: RideId={RideId} {FromStatus} → {ToStatus} TriggeredBy={TriggeredBy}",
             rideId, fromStatus, newStatus, triggeredBy);
 
+        // Coordinator just requested the return leg — let the vendor know via SMS.
+        if (newStatus == RideStatus.AwaitingReturn && ride.VendorId.HasValue)
+        {
+            var vendorId = ride.VendorId.Value;
+            var destinationAddress = ride.DestinationAddress;
+            _ = Task.Run(async () =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var vendor = await scopedDb.Vendors.FindAsync(vendorId);
+                if (vendor is null) return;
+
+                try
+                {
+                    await _twilioDispatch.SendCheckpointSmsAsync(
+                        ride, vendor, $"Resident ready for return pickup from {destinationAddress}.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send return-pickup SMS for ride {RideId}", ride.Id);
+                }
+            });
+        }
+
         return ride;
     }
 
@@ -364,6 +398,33 @@ public class RideService
         return await _db.Rides
             .AsNoTracking()
             .Where(r => r.FacilityId == facilityId && r.PickupTime >= utcStart && r.PickupTime < utcEnd)
+            .OrderBy(r => r.PickupTime)
+            .Select(r => new RideSummaryDto(
+                r.Id,
+                r.Resident != null ? r.Resident.FirstName + " " + r.Resident.LastName : "Unknown",
+                r.Vendor != null ? r.Vendor.Name : null,
+                r.Status.ToString(),
+                r.DispatchChannel.ToString(),
+                r.PickupTime,
+                r.PickupAddress,
+                r.DestinationAddress,
+                r.LastKnownLat,
+                r.LastKnownLng,
+                r.LastLocationAt))
+            .ToListAsync();
+    }
+
+    public async Task<List<RideSummaryDto>> GetUpcomingRidesAsync(Guid facilityId, string timezone)
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(timezone);
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        var todayStart = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        var todayEnd = todayStart.AddDays(1);
+        var utcEnd = TimeZoneInfo.ConvertTimeToUtc(todayEnd, tz);
+
+        return await _db.Rides
+            .AsNoTracking()
+            .Where(r => r.FacilityId == facilityId && r.PickupTime >= utcEnd)
             .OrderBy(r => r.PickupTime)
             .Select(r => new RideSummaryDto(
                 r.Id,

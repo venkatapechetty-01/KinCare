@@ -8,6 +8,7 @@ using KinCare.API.Services.Dispatch;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -28,11 +29,20 @@ public class TwilioWebhookHandlerTests : IDisposable
 
     public TwilioWebhookHandlerTests()
     {
+        var dbName = "TwilioWebhookHandlerTests_" + Guid.NewGuid();
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase("TwilioWebhookHandlerTests_" + Guid.NewGuid())
+            .UseInMemoryDatabase(dbName)
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         _db = new AppDbContext(options);
+
+        // Fire-and-forget background work in RideService resolves a fresh AppDbContext
+        // from a new DI scope — point it at the same in-memory database as _db.
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(o => o
+            .UseInMemoryDatabase(dbName)
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         var mockHub = new Mock<IHubContext<RideStatusHub>>();
         var mockClients = new Mock<IHubClients>();
@@ -60,7 +70,8 @@ public class TwilioWebhookHandlerTests : IDisposable
             mockHub.Object,
             twilioDispatch,
             appConfig,
-            NullLogger<RideService>.Instance);
+            NullLogger<RideService>.Instance,
+            scopeFactory);
     }
 
     // ── Reply 1 — Accept / Claim ──────────────────────────────────────────────
@@ -225,7 +236,7 @@ public class TwilioWebhookHandlerTests : IDisposable
         await _db.SaveChangesAsync();
 
         // Verify the transition is valid (same check handler does)
-        var canTransition = _stateMachine.CanTransition(ride.Status, RideStatus.EnRoute);
+        var canTransition = _stateMachine.CanTransition(ride.Status, RideStatus.EnRoute, ride.DispatchChannel);
         canTransition.Should().BeTrue();
 
         await _rideService.AdvanceStatusAsync(ride.Id, RideStatus.EnRoute, "vendor_sms", $"twilio_sid:SMS_3");
@@ -244,7 +255,7 @@ public class TwilioWebhookHandlerTests : IDisposable
         ride.VendorId = vendor.Id;
         await _db.SaveChangesAsync();
 
-        var canTransition = _stateMachine.CanTransition(ride.Status, RideStatus.Arrived);
+        var canTransition = _stateMachine.CanTransition(ride.Status, RideStatus.Arrived, ride.DispatchChannel);
         canTransition.Should().BeTrue();
 
         await _rideService.AdvanceStatusAsync(ride.Id, RideStatus.Arrived, "vendor_sms", $"twilio_sid:SMS_4");
@@ -310,7 +321,7 @@ public class TwilioWebhookHandlerTests : IDisposable
         var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
 
         // Dispatched → Dropped is not valid
-        var canTransition = _stateMachine.CanTransition(ride.Status, RideStatus.Dropped);
+        var canTransition = _stateMachine.CanTransition(ride.Status, RideStatus.Dropped, ride.DispatchChannel);
         canTransition.Should().BeFalse();
 
         // Handler skips AdvanceStatusAsync when CanTransition is false, status unchanged

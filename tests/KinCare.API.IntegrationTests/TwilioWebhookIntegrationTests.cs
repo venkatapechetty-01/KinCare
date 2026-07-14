@@ -115,6 +115,49 @@ public class TwilioWebhookIntegrationTests : IClassFixture<CustomWebApplicationF
         return ride.Id;
     }
 
+    // Helper: seed a ride already assigned to the given vendor, at an arbitrary status
+    private async Task<Guid> SeedAssignedRideAsync(
+        Guid orgId, Guid facilityId, Guid vendorId, RideStatus status, DispatchChannel channel = DispatchChannel.SmsNemt)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var ride = new Ride
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = facilityId,
+            OrganizationId = orgId,
+            VendorId = vendorId,
+            Status = status,
+            DispatchChannel = channel,
+            PickupTime = DateTime.UtcNow.AddHours(2),
+            PickupAddress = "123 Main St, Detroit, MI",
+            DestinationAddress = "456 Oak Ave, Detroit, MI"
+        };
+        db.Rides.Add(ride);
+
+        db.RideEvents.Add(new RideEvent
+        {
+            Id = Guid.NewGuid(),
+            RideId = ride.Id,
+            FromStatus = status,
+            ToStatus = status,
+            TriggeredBy = "system",
+            Notes = "Seeded for test"
+        });
+
+        await db.SaveChangesAsync();
+        return ride.Id;
+    }
+
+    private async Task<RideStatus> GetRideStatusAsync(Guid rideId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ride = await db.Rides.FindAsync(rideId);
+        return ride!.Status;
+    }
+
     // ── Tests ─────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -185,5 +228,73 @@ public class TwilioWebhookIntegrationTests : IClassFixture<CustomWebApplicationF
 
         response.StatusCode.Should().Be(HttpStatusCode.OK,
             $"Expected 200 but got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+    }
+
+    // ── Round-trip return leg (NEMT only) ────────────────────────────────────
+
+    [Fact]
+    public async Task Reply8AtDropped_OneWayRide_CompletesRide_RegressionCheck()
+    {
+        var phone = $"+1555{Guid.NewGuid().ToString("N")[..7]}";
+        var (orgId, facilityId, vendorId) = await SeedOrgFacilityVendorAsync(phone);
+        var rideId = await SeedAssignedRideAsync(orgId, facilityId, vendorId, RideStatus.Dropped);
+
+        var response = await _client.PostAsync("/webhook/twilio", TwilioForm(phone, "8"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await GetRideStatusAsync(rideId)).Should().Be(RideStatus.Completed);
+    }
+
+    [Fact]
+    public async Task Reply3AtAwaitingReturn_AdvancesToReturnEnRoute()
+    {
+        var phone = $"+1555{Guid.NewGuid().ToString("N")[..7]}";
+        var (orgId, facilityId, vendorId) = await SeedOrgFacilityVendorAsync(phone);
+        var rideId = await SeedAssignedRideAsync(orgId, facilityId, vendorId, RideStatus.AwaitingReturn);
+
+        var response = await _client.PostAsync("/webhook/twilio", TwilioForm(phone, "3"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await GetRideStatusAsync(rideId)).Should().Be(RideStatus.ReturnEnRoute);
+    }
+
+    [Fact]
+    public async Task Reply5AtReturnEnRoute_AdvancesToReturnPickedUp()
+    {
+        var phone = $"+1555{Guid.NewGuid().ToString("N")[..7]}";
+        var (orgId, facilityId, vendorId) = await SeedOrgFacilityVendorAsync(phone);
+        var rideId = await SeedAssignedRideAsync(orgId, facilityId, vendorId, RideStatus.ReturnEnRoute);
+
+        var response = await _client.PostAsync("/webhook/twilio", TwilioForm(phone, "5"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await GetRideStatusAsync(rideId)).Should().Be(RideStatus.ReturnPickedUp);
+    }
+
+    [Fact]
+    public async Task Reply8AtReturnPickedUp_CompletesRoundTripRide()
+    {
+        var phone = $"+1555{Guid.NewGuid().ToString("N")[..7]}";
+        var (orgId, facilityId, vendorId) = await SeedOrgFacilityVendorAsync(phone);
+        var rideId = await SeedAssignedRideAsync(orgId, facilityId, vendorId, RideStatus.ReturnPickedUp);
+
+        var response = await _client.PostAsync("/webhook/twilio", TwilioForm(phone, "8"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await GetRideStatusAsync(rideId)).Should().Be(RideStatus.Completed);
+    }
+
+    [Fact]
+    public async Task OutOfContextDigit_AtAwaitingReturn_IsSafeNoOp()
+    {
+        // Digit 4 has no meaning while AwaitingReturn (that's an outbound-leg digit) — must be a no-op, not an error
+        var phone = $"+1555{Guid.NewGuid().ToString("N")[..7]}";
+        var (orgId, facilityId, vendorId) = await SeedOrgFacilityVendorAsync(phone);
+        var rideId = await SeedAssignedRideAsync(orgId, facilityId, vendorId, RideStatus.AwaitingReturn);
+
+        var response = await _client.PostAsync("/webhook/twilio", TwilioForm(phone, "4"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await GetRideStatusAsync(rideId)).Should().Be(RideStatus.AwaitingReturn);
     }
 }

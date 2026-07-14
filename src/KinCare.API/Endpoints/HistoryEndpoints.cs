@@ -38,6 +38,10 @@ public static class HistoryEndpoints
         else
             query = query.Where(r => r.OrganizationId == tenant.OrganizationId);
 
+        // History shows rides that have already happened — future-dated (upcoming) rides
+        // belong on the dashboard, not here, regardless of status.
+        query = query.Where(r => r.PickupTime <= DateTime.UtcNow);
+
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<RideStatus>(status, true, out var s))
             query = query.Where(r => r.Status == s);
 

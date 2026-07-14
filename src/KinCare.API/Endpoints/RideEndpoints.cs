@@ -15,6 +15,7 @@ public static class RideEndpoints
 
         group.MapGet("/today", GetToday);
         group.MapGet("/today/count", GetTodayCount);
+        group.MapGet("/upcoming", GetUpcoming);
         group.MapPost("/", BookRide);
         group.MapGet("/{id:guid}", GetDetail);
         group.MapPut("/{id:guid}/status", AdvanceStatus);
@@ -58,6 +59,43 @@ public static class RideEndpoints
             tenant.FacilityId.Value, singleFacility.Timezone);
 
         return Results.Ok(facilityRides);
+    }
+
+    private static async Task<IResult> GetUpcoming(
+        HttpContext httpContext,
+        AppDbContext db,
+        RideService rideService)
+    {
+        var tenant = httpContext.GetTenantContext();
+
+        // OrgAdmin: get rides from all facilities in the organization
+        if (tenant.Role == UserRole.OrgAdmin && tenant.FacilityId is null)
+        {
+            var facilities = await db.Facilities.AsNoTracking()
+                .Where(f => f.OrganizationId == tenant.OrganizationId && f.IsActive)
+                .ToListAsync();
+
+            var allRides = new List<RideSummaryDto>();
+            foreach (var facility in facilities)
+            {
+                var rides = await rideService.GetUpcomingRidesAsync(facility.Id, facility.Timezone);
+                allRides.AddRange(rides);
+            }
+
+            return Results.Ok(allRides.OrderBy(r => r.PickupTime));
+        }
+
+        // FacilityAdmin: get rides from their assigned facility
+        if (tenant.FacilityId is null)
+            return Results.BadRequest(new { error = "Facility context required." });
+
+        var singleFacility = await db.Facilities.AsNoTracking()
+            .FirstAsync(f => f.Id == tenant.FacilityId.Value);
+
+        var facilityUpcoming = await rideService.GetUpcomingRidesAsync(
+            tenant.FacilityId.Value, singleFacility.Timezone);
+
+        return Results.Ok(facilityUpcoming);
     }
 
     private static async Task<IResult> BookRide(

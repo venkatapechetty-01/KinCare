@@ -236,14 +236,11 @@
         }
       }
 
-      // Google Maps JS canvas — fills all remaining height
-      .google-map-canvas {
+      // Leaflet map canvas — fills all remaining height
+      .leaflet-map-canvas {
         flex: 1;
         min-height: 0;
         width: 100%;
-
-        // Override Google's default inline height when map loads
-        > div { height: 100% !important; }
       }
 
       .map-coords {

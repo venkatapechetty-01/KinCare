@@ -63,18 +63,42 @@
 
 ## 2. Maps & Location
 
-### Google Maps JavaScript API
+### LocationIQ (Autocomplete + Live Map Tiles)
 
 | Field | Value |
 |---|---|
-| **Purpose** | Live GPS map embed on ride detail screen; navigation deeplinks on driver tracking page; Google Maps URL in booking confirmation |
-| **SDK** | Client-side JS (`@googlemaps/js-api-loader` or direct script tag on tracking page) |
-| **Config key** | `googleMapsApiKey` in `src/KinCare.Web/src/environments/environment.development.ts` |
-| **Current value** | `''` (empty string — map will not render) |
-| **Cost** | Free tier: $200/month credit (~28,000 map loads/month) — sufficient at MVP scale |
-| **Where used** | `live-map/live-map.component.ts` (dashboard GPS overlay), `ride-detail` (driver pin), `TrackingEndpoints.cs` (deeplink URL construction) |
-| **Status** | ⚠️ SDK wired but API key not configured — map panels will not render |
-| **TODO** | Obtain key from Google Cloud Console → APIs & Services → Credentials; fill in `environment.development.ts` and production environment variable |
+| **Purpose** | Two uses under one account/key: (1) address autocomplete on the booking form, (2) map tile rendering for the Live Operations Map (`/live-map`) |
+| **SDK** | (1) Server-side outbound REST, proxied through the backend so the key never reaches the browser for autocomplete calls. (2) Client-side Leaflet.js `L.tileLayer`, key embedded in the tile URL (standard/expected for map-tile providers — restrict by HTTP referrer on the LocationIQ dashboard, not secrecy) |
+| **Config key (backend)** | `LocationIq:ApiKey` in `appsettings.Development.json` → `Services/GeocodingService.cs` |
+| **Config key (frontend)** | `locationIqApiKey` in `src/KinCare.Web/src/environments/environment.ts` |
+| **Cost** | Free tier: 5,000 requests/day, no credit card required |
+| **Where used** | `Endpoints/GeocodeEndpoints.cs`, `Services/GeocodingService.cs` (backend autocomplete proxy); `shared/services/geocode.service.ts`, `booking/booking.component.ts` (frontend autocomplete UI); `live-map/live-map.component.ts` (Leaflet tile layer) |
+| **Status** | ✅ Implemented and configured (both backend and frontend keys set) |
+
+---
+
+### Live Map — Leaflet.js (replaces Google Maps JS API)
+
+| Field | Value |
+|---|---|
+| **Purpose** | Real-time moving pins on `/live-map` — status-colored markers with resident/vendor photo, driven by SignalR `LocationUpdated` events |
+| **SDK** | `leaflet` (npm), open-source, no API key of its own — pairs with the LocationIQ tile layer above |
+| **Why it replaced Google Maps JS API** | Google Maps JS API requires a billing-enabled Google Cloud project even within its free usage tier — this blocked local dev entirely (map never rendered, browser console showed `ApiProjectMapError`). Leaflet has no billing requirement. |
+| **Where used** | `live-map/live-map.component.ts` |
+| **Status** | ✅ Implemented. Two real bugs were found and fixed while wiring this up: (1) the map canvas `<div>` was only ever mounted in the DOM when at least one GPS-active ride existed, so `@ViewChild('mapCanvas')` was `undefined` at init and the map silently never initialized — fixed by always mounting the canvas regardless of loading/empty state; (2) after the Leaflet swap, markers rendered at the wrong pixel position (thousands of pixels off-screen) because Leaflet, unlike Google Maps, does not auto-detect its container's size changing after a CSS flex layout settles — fixed by calling `map.invalidateSize()` once the layout stabilizes. |
+| **Note** | `@googlemaps/js-api-loader` has been fully removed from `package.json` — no Google Maps JS SDK remains anywhere in the frontend bundle. |
+
+---
+
+### Google Maps — navigation deeplinks only (not the JS SDK)
+
+| Field | Value |
+|---|---|
+| **Purpose** | Plain `maps.google.com/dir/?...` links: (1) "Open in Google Maps" button on the ride-detail Live Driver Location card, (2) navigation deeplinks on the public driver tracking page |
+| **SDK** | None — these are just `<a href="https://www.google.com/maps/...">` links, not the JavaScript SDK. No API key, no billing account, nothing to configure. |
+| **Where used** | `ride-detail/ride-detail.component.ts` (`mapsDirectLink` getter), `TrackingEndpoints.cs` (`pickupUrl`/`destUrl` construction) |
+| **Status** | ✅ Implemented, unaffected by the Leaflet migration above |
+| **Separate, still-Google-Embed-API usage** | `ride-detail/ride-detail.component.ts`'s `mapsEmbedUrl` getter renders a Google Maps **Embed API** iframe (a different, simpler product from the JS SDK — no billing account required for typical usage) inside the ride-detail page's Live Driver Location card, using `environment.googleMapsApiKey`. This is separate from — and was not touched by — the `/live-map` page's migration to Leaflet. If `googleMapsApiKey` is left empty, this one iframe embed will show blank/degraded; the `/live-map` page is unaffected either way since it no longer depends on it. |
 
 ---
 
@@ -424,7 +448,8 @@ See [Section 6 — Push Notifications](#6-push-notifications).
 export const environment = {
   production: false,
   apiUrl: 'http://localhost:5000',
-  googleMapsApiKey: ''  // Fill in from Google Cloud Console → APIs & Services → Credentials
+  googleMapsApiKey: '',   // Fill in from Google Cloud Console → APIs & Services → Credentials (ride-detail Embed API iframe only — /live-map no longer needs this)
+  locationIqApiKey: '',   // Fill in from my.locationiq.com — powers booking-form autocomplete + /live-map tiles
 };
 ```
 
@@ -435,8 +460,9 @@ export const environment = {
 | Priority | Service | Task |
 |---|---|---|
 | 🔴 High | Firebase FCM | Place `firebase-service-account.json` at configured path; test push notification on real iOS/Android device |
-| 🔴 High | Google Maps | Fill in `googleMapsApiKey` in `environment.development.ts` — live map and tracking page deeplinks will not work without it |
 | 🔴 High | Hangfire `ExternalTripSyncJob` | Implement actual HTTP polling calls to Uber Health and Roundtrip Health APIs — currently logs only. Uber/Broker ride status will stall if webhook is missed. |
+| 🟡 Medium | Google Maps (Embed API) | Fill in `googleMapsApiKey` — only affects the ride-detail page's individual driver-location iframe; the `/live-map` operations map (Leaflet + LocationIQ) works without it |
+| 🟡 Medium | LocationIQ (production) | `render.yaml` has no `LocationIq__ApiKey` env var yet for the API service, and no build-time var for the frontend's `locationIqApiKey` — works locally, not yet wired for the Render deploy |
 | 🟡 Medium | Stripe | Test full billing pipeline end-to-end with real Stripe test-mode key on a publicly accessible URL (Stripe requires HTTPS to deliver webhooks) |
 | 🟡 Medium | SendGrid | Wire `SendGrid:ApiKey` into invitation email send — currently referenced in architecture but not in `appsettings.Development.json.example` |
 | 🟡 Medium | Splunk | Add `Serilog.Sinks.Splunk` for production log aggregation and security alerting; configure HEC endpoint |

@@ -245,6 +245,19 @@
         font-size: 0.9rem !important;
       }
 
+      .view-live-map-btn {
+        font-size: 0.9rem !important;
+        display: inline-flex !important;
+        align-items: center;
+        gap: 0.35rem;
+
+        mat-icon {
+          font-size: 1.2rem;
+          width: 1.2rem;
+          height: 1.2rem;
+        }
+      }
+
       .last-seen-badge {
         display: flex;
         align-items: center;
@@ -495,7 +508,10 @@
     padding: 1.5rem 1rem;
 
     .info-grid {
-      grid-template-columns: 1fr;
+      // grid-template-columns:1fr can lose the cascade against auto-fit/minmax(400px,...)
+      // even at matching specificity — flex sidesteps it and reliably fits the viewport.
+      display: flex !important;
+      flex-direction: column !important;
 
       .info-item {
         &.location-item {

@@ -13,7 +13,7 @@
             <mat-select formControlName="status">
               <mat-option value="">All Statuses</mat-option>
               @for (status of statuses; track status) {
-                <mat-option [value]="status">{{ status }}</mat-option>
+                <mat-option [value]="status">{{ getStatusLabel(status) }}</mat-option>
               }
             </mat-select>
             <mat-icon matIconPrefix>info</mat-icon>
@@ -98,7 +98,7 @@
                 <th mat-header-cell *matHeaderCellDef>Status</th>
                 <td mat-cell *matCellDef="let ride">
                   <span class="status-badge" [ngClass]="getStatusClass(ride.status)">
-                    {{ ride.status }}
+                    {{ getStatusLabel(ride.status) }}
                   </span>
                 </td>
               </ng-container>

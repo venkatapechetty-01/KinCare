@@ -55,7 +55,7 @@ public class ExternalTripSyncJob
                 if (newStatus is null || newStatus == ride.Status)
                     continue;
 
-                if (!_stateMachine.CanTransition(ride.Status, newStatus.Value))
+                if (!_stateMachine.CanTransition(ride.Status, newStatus.Value, ride.DispatchChannel))
                 {
                     _logger.LogWarning("Broker status {BrokerStatus} maps to {NewStatus} but transition from {Current} is invalid for ride {RideId}",
                         brokerStatus, newStatus, ride.Status, ride.Id);

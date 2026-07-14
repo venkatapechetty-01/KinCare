@@ -16,7 +16,11 @@ public static class UserEndpoints
         group.MapGet("/me", GetMe);
         group.MapPut("/me", UpdateProfile);
         group.MapPost("/me/change-password", ChangePassword);
-        group.MapPost("/me/photo", UploadPhoto);
+        // IFormFile binding makes ASP.NET Core require an antiforgery token by default,
+        // which assumes cookie-based sessions. This API is Bearer-token authenticated
+        // (no ambient credentials a browser would auto-attach cross-site), so CSRF
+        // protection isn't meaningful here — opt this endpoint out explicitly.
+        group.MapPost("/me/photo", UploadPhoto).DisableAntiforgery();
         group.MapDelete("/me/photo", RemovePhoto);
     }
 

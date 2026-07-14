@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ASPNETCORE_ENVIRONMENT=Development dotnet ef migrations add AddReturnLegStatuses --project src/KinCare.API)",
+      "Bash(ps -p 47711 -o pid,command)",
+      "Bash(ps -p 47711 -o pid,lstart,command)",
+      "Bash(ps -p 47711 -o ppid=)",
+      "Bash(ps -p 47696 -o pid,command)",
+      "Bash(ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:8080 nohup dotnet KinCare.API.dll)",
+      "Bash(node verify_ride_detail.js)",
+      "Bash(node verify_timeline.js)",
+      "Bash(node verify_dashboard.js)",
+      "Bash(node verify_photo.js)",
+      "Bash(node verify_hover.js)",
+      "Bash(date; echo *)",
+      "Read(//etc/**)",
+      "Bash(tee /tmp/kc_token.txt)",
+      "Bash(node verify_history_fix.js)",
+      "Bash(grep '\\\\.cs$')",
+      "Bash(node verify_livemap.js)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(node verify_pin.js)",
+      "Bash(node verify_marker_dom.js)",
+      "Bash(node verify_pin2.js)",
+      "Bash(node responsive_audit.js)",
+      "Bash(node find_overflow.js)",
+      "Bash(node check_grid.js)",
+      "Bash(E2E_TEST_EMAIL=debug@debugtest.com E2E_TEST_PASSWORD=DebugPass123! npx playwright test tests/settings.spec.ts:39 --project=chromium --reporter=list)",
+      "Bash(E2E_TEST_EMAIL=debug@debugtest.com E2E_TEST_PASSWORD=DebugPass123! npx playwright test tests/rides.spec.ts --project=chromium --reporter=list --workers=1)",
+      "Bash(node final_responsive_check.js)",
+      "Bash(E2E_TEST_EMAIL=debug@debugtest.com E2E_TEST_PASSWORD=DebugPass123! npx playwright test tests/rides.spec.ts tests/settings.spec.ts tests/live-map.spec.ts --project=chromium --reporter=list --workers=1)"
+    ]
+  }
+}

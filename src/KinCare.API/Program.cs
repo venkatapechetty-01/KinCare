@@ -32,6 +32,28 @@ if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
+// Render (and several other hosts) provide database connection strings as a
+// postgres:// URI rather than the Npgsql keyword=value format — normalize it
+// here so every downstream consumer (EF Core, Hangfire) gets a format Npgsql
+// actually accepts.
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(rawConnectionString) &&
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+{
+    var dbUri = new Uri(rawConnectionString);
+    var userInfo = dbUri.UserInfo.Split(':', 2);
+    var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = dbUri.Host,
+        Port = dbUri.Port > 0 ? dbUri.Port : 5432,
+        Database = dbUri.AbsolutePath.TrimStart('/'),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+    };
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = npgsqlBuilder.ConnectionString;
+}
+
 // Serilog — structured logging to console + Splunk HEC
 var splunkConfig = builder.Configuration.GetSection("Splunk");
 var splunkHecUrl = splunkConfig["HecUrl"];      // e.g. https://your-splunk:8088/services/collector
@@ -69,6 +91,7 @@ builder.Services.Configure<FcmConfig>(builder.Configuration.GetSection("Firebase
 builder.Services.Configure<StripeConfig>(builder.Configuration.GetSection("Stripe"));
 builder.Services.Configure<BrokerConfig>(builder.Configuration.GetSection("Broker"));
 builder.Services.Configure<SendGridConfig>(builder.Configuration.GetSection("SendGrid"));
+builder.Services.Configure<LocationIqConfig>(builder.Configuration.GetSection("LocationIq"));
 
 // HttpContextAccessor — needed by RlsSessionInterceptor
 builder.Services.AddHttpContextAccessor();
@@ -153,6 +176,7 @@ builder.Services.AddScoped<KinCare.API.Services.Dispatch.TwilioDispatchService>(
 builder.Services.AddScoped<KinCare.API.Services.Dispatch.BrokerDispatchService>();
 builder.Services.AddScoped<FcmService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<GeocodingService>();
 builder.Services.AddScoped<KinCare.API.Jobs.EscalationJob>();
 builder.Services.AddScoped<KinCare.API.Jobs.CheckpointReminderJob>();
 builder.Services.AddScoped<KinCare.API.Jobs.ExternalTripSyncJob>();
@@ -304,6 +328,7 @@ app.MapHistoryEndpoints();
 app.MapOrgAdminEndpoints();
 app.MapUserEndpoints();
 app.MapBillingEndpoints();
+app.MapGeocodeEndpoints();
 
 // Health Checks
 app.MapHealthChecks("/health");

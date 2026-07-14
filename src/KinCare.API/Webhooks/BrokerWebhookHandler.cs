@@ -70,7 +70,7 @@ public static class BrokerWebhookHandler
             return Results.Ok();
 
         var stateMachine = new RideStateMachine();
-        if (!stateMachine.CanTransition(ride.Status, newStatus.Value))
+        if (!stateMachine.CanTransition(ride.Status, newStatus.Value, ride.DispatchChannel))
             return Results.Ok();
 
         await rideService.AdvanceStatusAsync(

@@ -38,13 +38,27 @@ public class TwilioDispatchService
 
     public async Task SendCheckpointSmsAsync(Ride ride, Vendor vendor, string checkpoint)
     {
+        // Reply menu matches the digit scheme in TwilioWebhookHandler.PostAcceptReplyMap,
+        // which is keyed on the ride's current status — the return leg reuses the same
+        // digits with different meanings.
+        var replyMenu = ride.Status == RideStatus.AwaitingReturn || ride.Status == RideStatus.ReturnEnRoute
+            ? "Reply with number:\n" +
+              "3 = On My Way Back\n" +
+              "5 = Picked Up\n" +
+              "8 = Trip Complete\n" +
+              "9 = Report Issue"
+            : "Reply with number:\n" +
+              "3 = On My Way\n" +
+              "4 = Arrived\n" +
+              "5 = Picked Up\n" +
+              "6 = At Destination\n" +
+              "7 = Dropped Off\n" +
+              "8 = Trip Complete\n" +
+              "9 = Report Issue";
+
         var body = $"KinCare Ride #{ride.Id.ToString()[..8]}\n" +
                    $"{checkpoint}\n" +
-                   "Reply with number:\n" +
-                   "3 = On My Way\n" +
-                   "4 = Arrived\n" +
-                   "5 = Dropped Safely\n" +
-                   "6 = Report Issue";
+                   replyMenu;
 
         await SendSmsAsync(vendor.PhoneNumber, body);
     }

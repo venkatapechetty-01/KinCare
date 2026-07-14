@@ -35,16 +35,33 @@ The API will start without the rest, but the corresponding feature won't work un
 - `SendGrid__ApiKey`, `SendGrid__FromEmail` — invitation emails
 - `Broker__ApiKey`, `Broker__ClientId`, `Broker__ClientSecret`, `Broker__OrganizationId`, `Broker__WebhookSecret` — Roundtrip Health fallback dispatch
 - `Splunk__HecUrl`, `Splunk__HecToken` — log shipping
+- `LocationIq__ApiKey` — address autocomplete on the booking form (backend proxy)
 
 These are all marked `sync: false` in `render.yaml`, so Render will prompt for each at
 Blueprint creation time — leave any you don't have blank for now, the app boots fine without them.
 
-### 3. Frontend API URL
+### 3. Frontend build-time variables
 
-The frontend build reads `API_BASE_URL` during build and writes it into the production environment file.
+The frontend build (`scripts/write-env.js`, run via `npm run build`) reads two env vars and
+bakes them into `environment.production.ts` at build time — this is the **only** placeholder-
+substitution mechanism that actually runs on the Render deploy path (a separate `sed`-based
+substitution exists in `.github/workflows/deploy-*.yml` for the older Vercel/Railway pipeline,
+but that workflow is not what `render.yaml` uses):
 
-If you deploy manually rather than with the blueprint, set the Render frontend build environment variable:
-- `API_BASE_URL=https://<your-api-service>.onrender.com`
+- `API_BASE_URL=https://<your-api-service>.onrender.com` — set automatically by `render.yaml`
+- `LOCATIONIQ_API_KEY=<your LocationIQ key>` — powers booking-form autocomplete requests made
+  directly from the browser to your API, and the `/live-map` Leaflet tile layer; marked
+  `sync: false` in `render.yaml`, so Render prompts for it at Blueprint creation
+
+If you deploy manually rather than with the blueprint, set both of the above as Render frontend
+build environment variables.
+
+Note: `GOOGLE_MAPS_API_KEY_PLACEHOLDER`, `FCM_VAPID_KEY_PLACEHOLDER`, and the `FIREBASE_*_PLACEHOLDER`
+tokens in `environment.production.ts` are **not** substituted by this script or by `render.yaml` —
+they'll ship as literal placeholder strings in the production bundle unless you extend
+`write-env.js` the same way. This only affects the ride-detail page's individual Google Maps
+Embed iframe and Firebase push notifications; it does not affect the `/live-map` operations map
+(Leaflet + LocationIQ), which has no Google or Firebase dependency.
 
 ### 4. Database migration
 

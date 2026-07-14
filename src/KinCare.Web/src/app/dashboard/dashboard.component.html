@@ -62,9 +62,16 @@
               <div class="tracking-live">
                 <mat-icon class="live-dot">location_on</mat-icon>
                 <span>Live — <strong>{{ ride.status === 'EnRoute' ? 'En Route' : ride.status === 'Arrived' ? 'At Facility' : ride.status === 'PickedUp' ? 'Picked Up' : ride.status === 'AtDestination' ? 'At Destination' : 'Tracking Active' }}</strong></span>
-                <a [href]="'https://maps.google.com/?q=' + ride.lastKnownLat + ',' + ride.lastKnownLng" target="_blank" class="map-link">
-                  Open Map
-                </a>
+                <div class="map-links">
+                  <a [routerLink]="['/live-map']" [queryParams]="{ rideId: ride.id }"
+                     (click)="$event.stopPropagation()" class="map-link">
+                    View Live Location
+                  </a>
+                  <a [href]="'https://maps.google.com/?q=' + ride.lastKnownLat + ',' + ride.lastKnownLng"
+                     target="_blank" (click)="$event.stopPropagation()" class="map-link">
+                    Open Map
+                  </a>
+                </div>
               </div>
             } @else if (ride.status === 'Dispatched' || ride.status === 'Confirmed') {
               <div class="tracking-pending">
@@ -72,6 +79,70 @@
                 <span>Awaiting driver location</span>
               </div>
             }
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+
+  <div class="dashboard-header upcoming-header">
+    <h2>Upcoming Rides</h2>
+    <p class="subtitle">Booked rides scheduled after today</p>
+  </div>
+
+  @if (loadingUpcoming) {
+    <div class="rides-grid">
+      @for (i of [1,2]; track i) {
+        <div class="ride-card skeleton-card">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line short"></div>
+        </div>
+      }
+    </div>
+  } @else if (upcomingRides.length === 0) {
+    <div class="empty-state">
+      <mat-icon>event_upcoming</mat-icon>
+      <h2>No upcoming rides booked</h2>
+      <p>Rides booked for future dates will appear here</p>
+    </div>
+  } @else {
+    <div class="rides-grid">
+      @for (ride of upcomingRides; track ride.id) {
+        <mat-card class="ride-card" (click)="viewRideDetail(ride.id)">
+          <mat-card-header>
+            <div class="ride-header">
+              <div class="ride-info">
+                <h3>{{ ride.residentName || 'Unknown Resident' }}</h3>
+                <p class="pickup-time">
+                  <mat-icon>event</mat-icon>
+                  {{ ride.pickupTime | date:'EEE, MMM d · h:mm a' }}
+                </p>
+              </div>
+              <mat-chip [class]="'status-' + ride.status.toLowerCase()">
+                {{ getStatusLabel(ride.status) }}
+              </mat-chip>
+            </div>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="location">
+              <mat-icon>my_location</mat-icon>
+              <span>{{ ride.pickupAddress }}</span>
+            </div>
+            <div class="location">
+              <mat-icon>place</mat-icon>
+              <span>{{ ride.destinationAddress }}</span>
+            </div>
+            <div class="ride-meta">
+              <span class="vendor">
+                <mat-icon>local_shipping</mat-icon>
+                {{ ride.vendorName || 'Unassigned' }}
+              </span>
+              <span class="channel">
+                <mat-icon>{{ getChannelIcon(ride.dispatchChannel) }}</mat-icon>
+                {{ ride.dispatchChannel }}
+              </span>
+            </div>
           </mat-card-content>
         </mat-card>
       }

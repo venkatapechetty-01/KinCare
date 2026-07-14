@@ -7,6 +7,7 @@ using KinCare.API.Services;
 using KinCare.API.Services.Dispatch;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -27,10 +28,17 @@ public class TrackingEndpointsTests : IDisposable
 
     public TrackingEndpointsTests()
     {
+        var dbName = "TrackingEndpointsTests_" + Guid.NewGuid();
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase("TrackingEndpointsTests_" + Guid.NewGuid())
+            .UseInMemoryDatabase(dbName)
             .Options;
         _db = new AppDbContext(options);
+
+        // Fire-and-forget background work in RideService resolves a fresh AppDbContext
+        // from a new DI scope — point it at the same in-memory database as _db.
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         _mockHub = new Mock<IHubContext<RideStatusHub>>();
         var mockClients = new Mock<IHubClients>();
@@ -55,7 +63,8 @@ public class TrackingEndpointsTests : IDisposable
             _mockHub.Object,
             twilioDispatch,
             appConfig,
-            NullLogger<RideService>.Instance);
+            NullLogger<RideService>.Instance,
+            scopeFactory);
     }
 
     // ── UpdateLocation logic ──────────────────────────────────────────────────

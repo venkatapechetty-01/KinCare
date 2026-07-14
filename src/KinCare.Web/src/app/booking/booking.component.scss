@@ -175,6 +175,66 @@ mat-form-field {
   }
 }
 
+// ── Address autocomplete ──────────────────────────────────────────────────────
+
+.address-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2px 0;
+  width: 100%;
+
+  .address-pin {
+    color: #3f51b5;
+    font-size: 1.15rem;
+    width: 1.15rem;
+    height: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  .address-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+
+    .address-primary {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #111;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .address-secondary {
+      font-size: 0.78rem;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+::ng-deep .address-autocomplete-panel.mat-mdc-autocomplete-panel {
+  border-radius: 12px !important;
+  padding: 6px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14) !important;
+
+  .mat-mdc-option {
+    border-radius: 8px;
+    min-height: 48px;
+
+    &::after { display: none !important; } // kill MDC's built-in ripple/divider layer
+
+    &:hover:not(.mdc-list-item--disabled),
+    &.mat-mdc-option-active {
+      background: #f0f2ff;
+    }
+  }
+}
+
 // ── Selected resident card ────────────────────────────────────────────────────
 
 .selected-resident-card {

@@ -87,7 +87,7 @@ public class DomainModelTests
     public void RideStatus_HasExpectedValues()
     {
         var values = Enum.GetValues<RideStatus>();
-        values.Should().HaveCount(9);
+        values.Should().HaveCount(12);
         values.Should().Contain(RideStatus.Dispatched);
         values.Should().Contain(RideStatus.Confirmed);
         values.Should().Contain(RideStatus.EnRoute);
@@ -95,6 +95,9 @@ public class DomainModelTests
         values.Should().Contain(RideStatus.PickedUp);
         values.Should().Contain(RideStatus.AtDestination);
         values.Should().Contain(RideStatus.Dropped);
+        values.Should().Contain(RideStatus.AwaitingReturn);
+        values.Should().Contain(RideStatus.ReturnEnRoute);
+        values.Should().Contain(RideStatus.ReturnPickedUp);
         values.Should().Contain(RideStatus.Completed);
         values.Should().Contain(RideStatus.Cancelled);
     }

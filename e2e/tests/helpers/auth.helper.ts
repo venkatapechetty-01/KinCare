@@ -43,6 +43,22 @@ export async function loginViaAPI(request: APIRequestContext, creds: TestCredent
   return body.accessToken;
 }
 
+/**
+ * Seeds an already-authenticated session by writing the JWT directly into localStorage
+ * before the Angular app boots — `AuthService.loadUserFromToken()` decodes it from there
+ * on startup, same as after a real login. Use this instead of `loginViaUI` in any test that
+ * doesn't specifically need to exercise the login form: `POST /api/auth/login` is rate-limited
+ * to 5 attempts/min/IP, and any spec file with more than 5 tests calling `loginViaUI` will
+ * genuinely fail in CI (not just under rapid manual reruns) once actually executed — get one
+ * token via `loginViaAPI` in `test.beforeAll` and reuse it across every test in the file with
+ * this helper instead of logging in fresh per test.
+ */
+export async function useAuthToken(page: Page, token: string): Promise<void> {
+  await page.addInitScript((t) => {
+    window.localStorage.setItem('access_token', t);
+  }, token);
+}
+
 /** Register a brand-new OrgAdmin account and return its access token. */
 export async function registerNewOrg(
   request: APIRequestContext,

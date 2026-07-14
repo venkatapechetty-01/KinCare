@@ -283,7 +283,10 @@
     }
 
     .info-grid {
-      grid-template-columns: 1fr;
+      // grid-template-columns:1fr can lose the cascade against auto-fit/minmax(400px,...)
+      // even at matching specificity — flex sidesteps it and reliably fits the viewport.
+      display: flex !important;
+      flex-direction: column !important;
     }
 
     .security-section,

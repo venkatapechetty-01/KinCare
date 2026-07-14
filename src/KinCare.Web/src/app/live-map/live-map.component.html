@@ -24,22 +24,26 @@
     </div>
   </div>
 
-  @if (loading) {
-    <div class="loading-state">
-      <mat-spinner diameter="48"></mat-spinner>
-      <p>Loading active rides...</p>
-    </div>
-  } @else if (rides.length === 0) {
-    <div class="empty-state">
-      <mat-icon>location_off</mat-icon>
-      <h2>No active GPS rides</h2>
-      <p>Live tracking only appears for Smart-tier SMS vendors currently en route.</p>
-    </div>
-  } @else {
-    <div class="map-layout">
+  <!-- The map canvas is always mounted (never behind an @if) so Leaflet
+       has a real DOM node to attach to as soon as the view initializes — gating it behind
+       loading/empty-state conditionals left @ViewChild('mapCanvas') undefined whenever the
+       page first loaded with zero active-GPS rides, silently breaking the map entirely. -->
+  <div class="map-layout">
 
-      <!-- Left: ride list -->
-      <div class="ride-list">
+    <!-- Left: ride list -->
+    <div class="ride-list">
+      @if (loading) {
+        <div class="loading-state">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Loading active rides...</p>
+        </div>
+      } @else if (rides.length === 0) {
+        <div class="empty-state">
+          <mat-icon>location_off</mat-icon>
+          <h2>No active GPS rides</h2>
+          <p>Live tracking only appears for Smart-tier SMS vendors currently en route.</p>
+        </div>
+      } @else {
         @for (ride of rides; track ride.id) {
           <div class="ride-card" [class.selected]="selectedRide?.id === ride.id" (click)="selectRide(ride)">
             <div class="ride-card-top">
@@ -71,45 +75,45 @@
             </button>
           </div>
         }
-      </div>
+      }
+    </div>
 
-      <!-- Right: map -->
-      <div class="map-panel">
-        <div class="map-info-bar">
-          @if (selectedRide) {
-            <div class="map-info-left">
-              <mat-icon [style.color]="getStatusColor(selectedRide.status)">person_pin_circle</mat-icon>
-              <span><strong>{{ selectedRide.residentName }}</strong> · {{ selectedRide.vendorName ?? 'Unknown' }}</span>
-            </div>
-            <div class="map-info-right">
-              <mat-icon>access_time</mat-icon>
-              <span>{{ getLastSeenLabel(selectedRide.lastLocationAt) }}</span>
-              <a [href]="'https://www.google.com/maps?q=' + selectedRide.lat + ',' + selectedRide.lng"
-                 target="_blank" rel="noopener" mat-stroked-button class="gmaps-btn">
-                <mat-icon>open_in_new</mat-icon> Open in Maps
-              </a>
-            </div>
-          } @else {
-            <div class="map-info-left">
-              <mat-icon>map</mat-icon>
-              <span>Select a ride to focus</span>
-            </div>
-          }
-        </div>
-
-        <!-- Google Maps canvas — JS API renders here -->
-        <div #mapCanvas class="google-map-canvas"></div>
-
+    <!-- Right: map -->
+    <div class="map-panel">
+      <div class="map-info-bar">
         @if (selectedRide) {
-          <div class="map-coords">
-            <mat-icon>location_on</mat-icon>
-            {{ selectedRide.lat | number:'1.5-5' }}, {{ selectedRide.lng | number:'1.5-5' }}
-            <span class="coord-sep">·</span>
-            Pickup: {{ selectedRide.pickupTime | date:'shortTime' }}
+          <div class="map-info-left">
+            <mat-icon [style.color]="getStatusColor(selectedRide.status)">person_pin_circle</mat-icon>
+            <span><strong>{{ selectedRide.residentName }}</strong> · {{ selectedRide.vendorName ?? 'Unknown' }}</span>
+          </div>
+          <div class="map-info-right">
+            <mat-icon>access_time</mat-icon>
+            <span>{{ getLastSeenLabel(selectedRide.lastLocationAt) }}</span>
+            <a [href]="'https://www.google.com/maps?q=' + selectedRide.lat + ',' + selectedRide.lng"
+               target="_blank" rel="noopener" mat-stroked-button class="gmaps-btn">
+              <mat-icon>open_in_new</mat-icon> Open in Maps
+            </a>
+          </div>
+        } @else {
+          <div class="map-info-left">
+            <mat-icon>map</mat-icon>
+            <span>Select a ride to focus</span>
           </div>
         }
       </div>
 
+      <!-- Google Maps canvas — JS API renders here -->
+      <div #mapCanvas class="leaflet-map-canvas"></div>
+
+      @if (selectedRide) {
+        <div class="map-coords">
+          <mat-icon>location_on</mat-icon>
+          {{ selectedRide.lat | number:'1.5-5' }}, {{ selectedRide.lng | number:'1.5-5' }}
+          <span class="coord-sep">·</span>
+          Pickup: {{ selectedRide.pickupTime | date:'shortTime' }}
+        </div>
+      }
     </div>
-  }
+
+  </div>
 </div>

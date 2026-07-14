@@ -8,6 +8,7 @@ using KinCare.API.Services.Dispatch;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -25,11 +26,20 @@ public class RideServiceTests : IDisposable
 
     public RideServiceTests()
     {
+        var dbName = "RideServiceTests_" + Guid.NewGuid();
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase("RideServiceTests_" + Guid.NewGuid())
+            .UseInMemoryDatabase(dbName)
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         _db = new AppDbContext(options);
+
+        // Fire-and-forget background work in RideService resolves a fresh AppDbContext
+        // from a new DI scope — point it at the same in-memory database as _db.
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(o => o
+            .UseInMemoryDatabase(dbName)
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         _mockHub = new Mock<IHubContext<RideStatusHub>>();
         _mockClients = new Mock<IHubClients>();
@@ -60,7 +70,8 @@ public class RideServiceTests : IDisposable
             _mockHub.Object,
             twilioDispatch,
             appConfig,
-            logger);
+            logger,
+            scopeFactory);
     }
 
     // ── AdvanceStatusAsync ────────────────────────────────────────────────────

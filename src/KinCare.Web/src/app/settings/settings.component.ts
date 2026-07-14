@@ -184,8 +184,9 @@ export class SettingsComponent implements OnInit {
         this.photoPreview = null;
         this.uploadingPhoto = false;
       },
-      error: () => {
-        this.snackBar.open('Failed to upload photo. Max 5 MB, JPEG/PNG/WebP only.', 'Close', { duration: 5000, panelClass: ['error-snackbar'] });
+      error: (err) => {
+        const message = err?.error?.error || err?.error?.title || 'Failed to upload photo. Max 5 MB, JPEG/PNG/WebP only.';
+        this.snackBar.open(message, 'Close', { duration: 5000, panelClass: ['error-snackbar'] });
         this.uploadingPhoto = false;
       }
     });

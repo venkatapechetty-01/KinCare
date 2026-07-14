@@ -1,12 +1,13 @@
 @if (showShell) {
-  <mat-sidenav-container class="shell-container">
+  <mat-sidenav-container class="shell-container" [class.mobile-shell]="isMobile">
     <!-- Side navigation drawer -->
-    <mat-sidenav #sidenav mode="side" opened class="sidenav">
+    <mat-sidenav #sidenav [mode]="isMobile ? 'over' : 'side'" [opened]="sidenavOpen"
+                 (closedStart)="sidenavOpen = false" class="sidenav">
       <div class="sidenav-header">
         <span class="sidenav-logo">KinCare</span>
       </div>
 
-      <mat-nav-list>
+      <mat-nav-list (click)="closeSidenavOnMobile()">
         <a mat-list-item routerLink="/booking" routerLinkActive="active-link" class="sidenav-book-ride">
           <mat-icon matListItemIcon>add_circle</mat-icon>
           <span matListItemTitle>Book a Ride</span>
@@ -50,6 +51,11 @@
     <mat-sidenav-content>
       <!-- Persistent top toolbar -->
       <mat-toolbar class="app-toolbar">
+        @if (isMobile) {
+          <button mat-icon-button class="menu-btn" (click)="sidenav.toggle()" aria-label="Toggle navigation menu">
+            <mat-icon>menu</mat-icon>
+          </button>
+        }
         <!-- Logo / home link -->
         <a routerLink="/dashboard" class="toolbar-logo">KinCare</a>
 
