@@ -54,7 +54,8 @@ services:
       - key: Broker__WebhookSecret
         sync: false
 
-  - type: static_site
+  - type: web
+    runtime: static
     name: kincare-web
     plan: free
     rootDir: src/KinCare.Web
