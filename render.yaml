@@ -58,7 +58,7 @@ services:
     runtime: static
     name: kincare-web
     buildCommand: cd src/KinCare.Web && npm install && npm run build
-    staticPublishPath: src/KinCare.Web/dist/kin-care.web
+    staticPublishPath: src/KinCare.Web/dist/kin-care.web/browser
     routes:
       - type: rewrite
         source: /*
