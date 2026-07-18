@@ -25,6 +25,60 @@ public static class OrgAdminEndpoints
         group.MapGet("/metrics", GetMetrics);
         group.MapGet("/my-facility", GetMyFacility);
         group.MapGet("/live-map", GetLiveMap);
+        group.MapDelete("/", DeleteOwnOrganization);
+    }
+
+    // Permanently deletes the caller's OWN organization and everything under it
+    // (facilities, residents, vendors, rides, users, invitations). Deliberately takes no
+    // organization id — an OrgAdmin can only ever nuke their own tenant, never another
+    // org's, no matter what. Mainly here so test/onboarding orgs can be cleaned up via
+    // the API instead of direct database access.
+    //
+    // Every entity is deleted explicitly, in dependency order, rather than relying on the
+    // OnDelete(Cascade) config in AppDbContext to do it — real Postgres does enforce those
+    // cascades correctly, but this is a destructive, irreversible operation, so it's worth
+    // not just trusting FK config to be right. It also means this is fully verifiable by an
+    // integration test: EF Core's InMemory provider (used in tests) does NOT actually
+    // execute configured cascade deletes the way a real relational DB does, so a version of
+    // this that relied on cascades would silently leave orphaned rows under test while
+    // appearing to pass — which is exactly what happened while writing this.
+    private static async Task<IResult> DeleteOwnOrganization(
+        HttpContext httpContext,
+        AppDbContext db)
+    {
+        var tenant = httpContext.GetTenantContext();
+        if (tenant.Role != UserRole.OrgAdmin)
+            return Results.Forbid();
+        var orgId = tenant.OrganizationId;
+
+        await using var tx = await db.Database.BeginTransactionAsync();
+
+        var facilityIds = await db.Facilities.Where(f => f.OrganizationId == orgId).Select(f => f.Id).ToListAsync();
+        var rideIds = await db.Rides.Where(r => r.OrganizationId == orgId).Select(r => r.Id).ToListAsync();
+        var userIds = await db.Users.Where(u => u.OrganizationId == orgId).Select(u => u.Id).ToListAsync();
+
+        db.RideEvents.RemoveRange(await db.RideEvents.Where(e => rideIds.Contains(e.RideId)).ToListAsync());
+        db.RideDispatchOffers.RemoveRange(await db.RideDispatchOffers.Where(o => rideIds.Contains(o.RideId)).ToListAsync());
+        db.Rides.RemoveRange(await db.Rides.Where(r => r.OrganizationId == orgId).ToListAsync());
+        db.Residents.RemoveRange(await db.Residents.Where(r => facilityIds.Contains(r.FacilityId)).ToListAsync());
+        db.Vendors.RemoveRange(await db.Vendors.Where(v => facilityIds.Contains(v.FacilityId)).ToListAsync());
+        db.RefreshTokens.RemoveRange(await db.RefreshTokens.Where(t => userIds.Contains(t.UserId)).ToListAsync());
+        db.DeviceRegistrations.RemoveRange(await db.DeviceRegistrations.Where(d => userIds.Contains(d.UserId)).ToListAsync());
+        db.PasswordResetTokens.RemoveRange(await db.PasswordResetTokens.Where(p => userIds.Contains(p.UserId)).ToListAsync());
+        db.Users.RemoveRange(await db.Users.Where(u => u.OrganizationId == orgId).ToListAsync());
+        db.Invitations.RemoveRange(await db.Invitations.Where(i => i.OrganizationId == orgId).ToListAsync());
+        db.Facilities.RemoveRange(await db.Facilities.Where(f => f.OrganizationId == orgId).ToListAsync());
+        await db.SaveChangesAsync();
+
+        var org = await db.Organizations.FirstOrDefaultAsync(o => o.Id == orgId);
+        if (org is null)
+            return Results.NotFound();
+
+        db.Organizations.Remove(org);
+        await db.SaveChangesAsync();
+
+        await tx.CommitAsync();
+        return Results.NoContent();
     }
 
     private static async Task<IResult> GetMyFacility(
