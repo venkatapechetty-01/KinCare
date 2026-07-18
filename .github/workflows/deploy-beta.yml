@@ -1,8 +1,10 @@
 name: Deploy to Beta
 
+# Disabled from auto-running: same reason as deploy-prod.yml — targets Railway + Vercel,
+# not the actual deployment target (Render). Left manual-trigger-only rather than
+# deleted. This never actually ran automatically anyway (no `develop` branch exists in
+# this repo), but disabling the trigger now prevents it from firing if one is created.
 on:
-  push:
-    branches: [develop]
   workflow_dispatch:
 
 env:

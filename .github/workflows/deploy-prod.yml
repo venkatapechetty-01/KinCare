@@ -1,8 +1,13 @@
 name: Deploy to Production
 
+# Disabled from auto-running on every push: this pipeline targets Railway + Vercel,
+# which is not the actual deployment target — the live site runs on Render, deployed
+# via render.yaml's own git-push auto-deploy (unrelated to GitHub Actions). This
+# workflow was failing on every push to main (missing Jwt__SecretKey in its test step,
+# plus RAILWAY_PROD_TOKEN/VERCEL_*/PROD_DB_CONNECTION_STRING/SLACK_WEBHOOK_URL were
+# never configured as GitHub secrets, so later stages would fail regardless). Left
+# manual-trigger-only rather than deleted, in case Railway/Vercel is revisited later.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 env:
