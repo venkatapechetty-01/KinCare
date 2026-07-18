@@ -8,6 +8,77 @@ Multiple facility clients (tenants) are served from a single deployment, each fu
 
 **Repo root:** `~/Downloads/Projects/KinCare/`
 
+## Current Status (as of 2026-07-18)
+
+The Build Plan below (Features 0–13) is the *original* implementation plan and is kept
+for historical/reference purposes — its checkboxes are not maintained per-item. This
+section is the actual, current status; trust this over the checklist below.
+
+**Done and verified:** Features 0, 1, 2, 3, 4, 5, 7, 9, 10 are implemented and working
+(dispatch, SMS accept/decline, live GPS tracking with per-driver colored map pins, FCM
+push wiring, org admin dashboard, CSV export). Feature 8 (tracking links) works but
+deliberately deviates from spec — every vendor gets a tracking/accept link now, not just
+Smart-tier (see Architecture Deviations below).
+
+**Partial:**
+- **Feature 6 (Escalation)** — the 5-minute Hangfire job and FCM push on escalation both
+  work. `Jobs/CheckpointReminderJob.cs` is registered but never actually scheduled
+  (dead code). No Angular component subscribes to the `EscalationAlert` SignalR event, so
+  there's no in-app live notification for escalations beyond the push.
+- **Feature 13 (Polish & Hardening)** — rate limiting, the global exception handler, and
+  most Angular polish (empty states, most skeleton loaders) are done. **RLS is NOT
+  enforced at the database level** — `db/rls/*.sql` policy files exist but are never
+  applied by any migration or startup step, and the policies as written don't handle
+  OrgAdmin's org-wide access. Tenant isolation today relies entirely on the EF Core
+  global query filters (real, correct, but a single layer, not the intended two). Several
+  required test scenarios are also missing (cross-tenant isolation, inactive-org 402,
+  invalid Twilio signature 403, no Stripe webhook test at all).
+
+**Not done / deferred:**
+- **Feature 12 (Billing/Stripe)** — not implemented; deliberately out of scope for now.
+- **Broker dispatch** (part of Feature 11) — code exists (service, webhook handler, sync
+  job) but `RideService.BookRideAsync` never actually calls it, so `Broker`-routed rides
+  never get an `external_trip_id` and sit stuck at `Dispatched`. Left as dormant, gated
+  infrastructure (`org.BrokerEnabled` defaults false) rather than fixed, since there's no
+  real Roundtrip Health partnership/API key to test against.
+
+**Architecture deviations from this doc** (the doc below is historical intent, code below is reality):
+- **Uber Health was fully implemented, then fully removed** — no real Uber Health
+  partnership/API access. `DispatchChannel`, `DispatchMethod`, and `PlanFeature` have no
+  Uber Health member anymore. Every `UberHealth` reference elsewhere in this file is
+  stale.
+- **`Coordinator` role was renamed to `FacilityAdmin`** throughout the codebase. Every
+  `Coordinator` reference elsewhere in this file (roles, guards, SMS reply map comments)
+  means `FacilityAdmin` in the real code.
+- **Dispatch was rearchitected from "assign one vendor" to a broadcast model** —
+  `RideDispatchOffer` (one row per broadcast vendor, `Pending`/`Accepted`/`Declined`/
+  `Superseded`), first vendor to accept wins, others auto-superseded. Every vendor
+  (Basic or Smart tier) now gets a tracking/accept link, not just Smart tier.
+- **Round-trip NEMT support added** — `RideStatus` now includes `PickedUp`,
+  `AtDestination`, `AwaitingReturn`, `ReturnEnRoute`, `ReturnPickedUp` beyond the
+  original Dispatched→Confirmed→EnRoute→Arrived→Dropped→Completed flow. SMS reply digits
+  are 1–9, keyed by the ride's *current* status (not a fixed global meaning) — see
+  `TwilioWebhookHandler.PostAcceptReplyMap`.
+- Vendor and resident photo uploads exist (`POST /api/vendors/{id}/photo`, same pattern
+  on users), rendered on the Live Map with per-driver colored pins.
+
+**Known production blockers (do NOT go live without addressing):**
+1. **A2P 10DLC not registered** — real SMS to US mobile numbers fails with Twilio error
+   30034 until this is done in the Twilio Console (business/campaign registration).
+2. **SendGrid not configured on Render** — coordinator invitation emails won't send in
+   production.
+3. **Firebase not configured on Render** — no service account deployed, so FCM pushes
+   (code-complete) have nothing to send through.
+4. **`kincare-api` was found running on Render's free plan**, contradicting the policy
+   in this doc's Cost Notes table — cold starts risk breaking the <5s Twilio webhook
+   response window. (Render HTTP request/latency metrics also don't populate on free
+   tier.)
+5. Splunk log shipping is unconfigured (`Serilog.Sinks.Splunk` wired but no HEC
+   URL/token anywhere) — deliberate for now, using Render's built-in log viewer instead.
+   Serilog request logging is leveled correctly (Info/Warn/Error by status code) as of
+   this session.
+6. RLS not enforced at the DB level (see Feature 13 above).
+
 ## Stack
 
 | Layer | Technology |
@@ -23,8 +94,9 @@ Multiple facility clients (tenants) are served from a single deployment, each fu
 | Validation | FluentValidation |
 | Real-time | SignalR (ASP.NET Core built-in) |
 | Payments | Stripe .NET SDK |
-| Ambulatory Dispatch | Uber Health API |
-| NEMT Broker Fallback | Roundtrip Health API |
+| NEMT Broker Fallback | Roundtrip Health API (code exists, not wired into booking — see Current Status) |
+
+> Uber Health was removed entirely (no partnership/API access) — do not add it back without checking Current Status above.
 
 ## Repo Structure
 
@@ -46,8 +118,8 @@ KinCare/
 │   │   ├── Endpoints/               Minimal API route handlers
 │   │   ├── Jobs/                    Hangfire background jobs
 │   │   ├── Hubs/                    SignalR hubs
-│   │   ├── Webhooks/                inbound webhook handlers (Twilio, Stripe, Uber Health)
-│   │   └── Infrastructure/          config classes (JWT, Twilio, FCM, Stripe, UberHealth)
+│   │   ├── Webhooks/                inbound webhook handlers (Twilio, Broker; Stripe not yet built)
+│   │   └── Infrastructure/          config classes (JWT, Twilio, FCM, Stripe, Broker)
 │   ├── KinCare.Tests/               xUnit tests
 │   └── KinCare.Web/                 Angular 17 PWA
 │       └── src/app/
@@ -97,11 +169,11 @@ Organization  (paying B2B customer — e.g. "Sunrise Senior Group LLC")
 **Roles:**
 - `SuperAdmin` — KinCare platform staff, cross-org visibility
 - `OrgAdmin` — client's admin, manages all their facilities, views billing
-- `Coordinator` — day-to-day user, scoped to one facility only
+- `FacilityAdmin` — day-to-day user, scoped to one facility only (renamed from `Coordinator`)
 
 **Plan tiers** (stored on `Organization.PlanTier`):
 - `Starter` — SMS dispatch, escalation, ride history
-- `Professional` — + Uber Health, smart vendor GPS tracking, CSV export
+- `Professional` — + Broker dispatch fallback, smart vendor GPS tracking, CSV export
 - `Enterprise` — + multi-facility org dashboard, API access, SSO
 
 **Feature gating:** plan checks happen in API middleware only — never trust Angular to gate features.
@@ -112,25 +184,25 @@ Every ride is dispatched through exactly one channel. Channel is chosen automati
 
 | Channel | Vendor type | How it works | Who triggers status updates |
 |---|---|---|---|
-| `SmsNemt` | Wheelchair / oxygen / stretcher | Twilio SMS, numbered replies (1–6) | Vendor SMS reply → Twilio webhook |
-| `SmsTaxi` | Ambulatory (local taxi) | Twilio SMS, numbered replies (1–6) | Vendor SMS reply → Twilio webhook |
-| `UberHealth` | Ambulatory (Professional plan only) | Uber Health API, no SMS | Uber Health webhook → status sync |
-| `Broker` | Any (fallback when no local vendor) | Roundtrip Health API | Broker webhook → status sync |
+| `SmsNemt` | Wheelchair / oxygen / stretcher | Twilio SMS, numbered replies (1–9) or tracking link | Vendor SMS reply / tracking link → webhook or `/api/rides/track-status` |
+| `SmsTaxi` | Ambulatory (local taxi) | Twilio SMS, numbered replies (1–9) or tracking link | Vendor SMS reply / tracking link → webhook or `/api/rides/track-status` |
+| `Broker` | Any (fallback when no local vendor) | Roundtrip Health API — **not currently wired into booking, see Current Status** | Broker webhook → status sync |
+
+`UberHealth` was removed as a channel entirely — do not reintroduce without a real Uber Health partnership.
 
 **Routing logic in `DispatchRouter.RouteAsync`:**
 ```
 if resident.NeedsWheelchair || resident.NeedsOxygen || resident.NeedsStretcher
-  → SmsNemt (always — Uber Health and taxis cannot serve these)
-else if org.PlanTier >= Professional AND facility.UberHealthEnabled
-  → UberHealth
+  → SmsNemt (always — taxis cannot serve these)
 else if vendor.DispatchMethod == SmsTaxi
   → SmsTaxi
 else
   → SmsNemt (fallback)
-// If no local vendor available and org has Broker enabled → Broker
+// If no local vendor available and org has Broker enabled → Broker (routing decision exists;
+// actual booking call to the broker is not wired — see Current Status)
 ```
 
-**`SmsTaxi` vs `SmsNemt`:** Both use identical Twilio SMS dispatch and numbered reply flow. The only differences are: taxi vendors have `VendorType = Ambulatory`, they never receive wheelchair/oxygen resident rides, and their booking SMS omits special needs tags. Same code path — same `TwilioService`.
+**`SmsTaxi` vs `SmsNemt`:** Both use identical Twilio SMS dispatch and numbered reply flow. The only differences are: taxi vendors have `VendorType = Ambulatory`, they never receive wheelchair/oxygen resident rides, and their booking SMS omits special needs tags. Same code path — same `TwilioDispatchService`.
 
 ## Coding Rules
 
@@ -138,9 +210,9 @@ else
 - Standalone Angular components only — no NgModules
 - JWT claims must include `organization_id`, `facility_id`, `role` — all three always present
 - `TenantMiddleware` runs on every authenticated request — validates `Organization.IsActive`, attaches org+facility to request context
-- All API handlers scope queries using both `organization_id` (for OrgAdmin) and `facility_id` (for Coordinator) from JWT claims — never trust request body for tenant identity
+- All API handlers scope queries using both `organization_id` (for OrgAdmin) and `facility_id` (for FacilityAdmin) from JWT claims — never trust request body for tenant identity
 - Ride status transitions must go through `RideStateMachine` — never set `ride.Status` directly
-- All dispatch must go through `DispatchRouter` — never call `TwilioService`, `UberHealthService`, or `BrokerService` directly from endpoints
+- All dispatch must go through `DispatchRouter` — never call `TwilioDispatchService` or `BrokerDispatchService` directly from endpoints
 - `RideEvent` records are append-only — never update or delete them
 - All EF Core queries use the global query filter on `facility_id` — never bypass it
 - Plan feature checks use `IPlanGate.Requires(org, PlanFeature.X)` — never hardcode plan tier strings in business logic
@@ -184,6 +256,13 @@ dotnet test src/KinCare.Tests     # run after every feature
 ---
 
 ## Build Plan — Feature by Feature
+
+> **Historical record.** This was the original implementation plan; all 13 features have
+> since been built (see "Current Status" near the top of this file for what's actually
+> done, partial, deferred, and the real architecture deviations — Uber Health removal,
+> `Coordinator`→`FacilityAdmin` rename, broadcast dispatch model, round-trip NEMT
+> statuses). Checkboxes below are not maintained and mostly still show `[ ]` even for
+> completed work — don't use them as a status signal.
 
 Each feature is a complete vertical slice: domain → service → API → Angular.
 Complete features in order. Do not start Feature N+1 until Feature N builds and tests pass.
@@ -576,41 +655,56 @@ Complete features in order. Do not start Feature N+1 until Feature N builds and 
 Tenant hierarchy:
   Organization → Facility → AppUser/Resident/Vendor/Ride
   JWT must always contain: organization_id + role
-  Coordinator JWT also contains: facility_id
+  FacilityAdmin JWT also contains: facility_id
   OrgAdmin JWT has no facility_id — can query all facilities in their org
   SuperAdmin has no org/facility scope — internal use only
 
 Dispatch channel routing (DispatchRouter — never bypass):
   resident.NeedsWheelchair OR NeedsOxygen OR NeedsStretcher → SmsNemt (always)
-  else org.PlanTier >= Professional AND facility.UberHealthEnabled → UberHealth
   else vendor.DispatchMethod == SmsTaxi → SmsTaxi
   else → SmsNemt (default fallback)
-  No local vendor + org.BrokerEnabled → Broker
+  No local vendor + org.BrokerEnabled → Broker (routing only — booking call not wired, see Current Status)
 
-Valid state transitions (same for all channels):
-  Dispatched  → Confirmed  (vendor_sms | uber_webhook | broker_webhook)
-  Confirmed   → EnRoute    (vendor_sms | tracking_page | uber_webhook | broker_webhook)
-  EnRoute     → Arrived    (vendor_sms | tracking_page | uber_webhook | broker_webhook)
-  Arrived     → Dropped    (vendor_sms | tracking_page | uber_webhook | broker_webhook)
-  Dropped     → Completed  (coordinator only)
-  Any         → Cancelled  (coordinator only)
+Dispatch is a broadcast, not a single assignment: RideService.BookRideAsync creates one
+RideDispatchOffer (Pending) per matching vendor. First vendor to accept via SMS reply "1"
+or their tracking/accept link wins (RideService.ClaimRideAsync, transactional); every
+other Pending offer on that ride flips to Superseded. Every vendor gets a tracking token
+now, not just Smart tier.
 
-SMS reply map (SmsNemt and SmsTaxi only):
-  1 → Accept         (Dispatched → Confirmed)
-  2 → Decline        (Dispatched → Cancelled)
-  3 → On My Way      (Confirmed  → EnRoute)
-  4 → Arrived        (EnRoute    → Arrived)
-  5 → Dropped Safely (Arrived    → Dropped)
-  6 → Issue reported (no status change — FCM alert to coordinator)
+Valid state transitions:
+  Dispatched     → Confirmed      (vendor_sms | tracking_page)
+  Confirmed      → EnRoute        (vendor_sms | tracking_page)
+  EnRoute        → Arrived        (vendor_sms | tracking_page)
+  Arrived        → PickedUp       (vendor_sms | tracking_page)
+  PickedUp       → AtDestination  (vendor_sms | tracking_page)
+  AtDestination  → Dropped        (vendor_sms | tracking_page)
+  Dropped        → Completed      (facility_admin, one-way) or → AwaitingReturn (facility_admin, round-trip NEMT)
+  AwaitingReturn → ReturnEnRoute  (vendor_sms | tracking_page)
+  ReturnEnRoute  → ReturnPickedUp (vendor_sms | tracking_page)
+  ReturnPickedUp → Completed      (vendor_sms | tracking_page)
+  Any            → Cancelled      (facility_admin/org_admin only)
 
-Escalation rules (SmsNemt and SmsTaxi ONLY — never Uber Health or Broker):
+SMS reply map (SmsNemt and SmsTaxi only) — digit meaning depends on the ride's CURRENT
+status, see TwilioWebhookHandler.PostAcceptReplyMap; a phone keypad only has 9 usable
+digits so they're reused across the outbound and return legs:
+  1 → Accept (on a Dispatched ride with a Pending offer for this vendor)
+  2 → Decline (same)
+  3 → On My Way        (Confirmed → EnRoute, or AwaitingReturn → ReturnEnRoute)
+  4 → Reached facility  (EnRoute → Arrived)
+  5 → Resident picked up (Arrived → PickedUp, or ReturnEnRoute → ReturnPickedUp)
+  6 → At destination    (PickedUp → AtDestination)
+  7 → Dropped off        (AtDestination → Dropped)
+  8 → Trip complete      (Dropped → Completed, or ReturnPickedUp → Completed)
+  9 → Issue reported (no status change — FCM alert to coordinator)
+  Tracking/accept link does the same actions one-tap, no digits.
+
+Escalation rules (SmsNemt and SmsTaxi ONLY — never Broker):
   Dispatched + 30min past pickup_time   → "No confirmation" alert
   Confirmed  + 15min before pickup_time → "Hasn't departed" alert
   EnRoute    + 45min past pickup_time   → "May be delayed" alert
   Arrived    + 20min                    → "May need boarding help" alert
 
 Plan feature gates:
-  UberHealthDispatch  → Professional or Enterprise
   BrokerDispatch      → Professional or Enterprise
   SmartVendorTracking → Professional or Enterprise
   CsvExport           → Professional or Enterprise
