@@ -68,6 +68,22 @@ services:
         value: https://kincare-api-98e1.onrender.com
       - key: LOCATIONIQ_API_KEY
         sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: FCM_VAPID_KEY
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: FIREBASE_APP_ID
+        sync: false
 
 databases:
   - name: kincare-db
