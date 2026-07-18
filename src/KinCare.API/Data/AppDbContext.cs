@@ -174,6 +174,8 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
             e.Property(v => v.VendorType).HasConversion<string>().HasMaxLength(20);
             e.Property(v => v.DispatchMethod).HasConversion<string>().HasMaxLength(20);
             e.Property(v => v.CapabilityTier).HasConversion<string>().HasMaxLength(20);
+            e.Property(v => v.Company).HasMaxLength(200);
+            e.Property(v => v.ServiceArea).HasMaxLength(200);
             e.Property(v => v.PhotoUrl).HasMaxLength(500);
 
             e.HasOne(v => v.Facility)
@@ -331,9 +333,8 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
         {
             e.ToTable("ride_dispatch_offers");
             e.HasKey(o => o.Id);
-            // "Pending" is combined with a tracking token for Smart vendors, e.g.
-            // "Pending|token:{32-char guid}" — needs more than a plain status name.
-            e.Property(o => o.Status).HasMaxLength(64).IsRequired();
+            e.Property(o => o.Status).HasMaxLength(20).IsRequired();
+            e.Property(o => o.TrackingToken).HasMaxLength(100);
 
             e.HasOne(o => o.Ride)
                 .WithMany()
@@ -347,6 +348,8 @@ public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
 
             e.HasIndex(o => new { o.RideId, o.VendorId }).IsUnique();
             e.HasIndex(o => new { o.VendorId, o.Status });
+            e.HasIndex(o => o.TrackingToken)
+                .HasFilter("\"TrackingToken\" IS NOT NULL");
 
             // Follow same filter as Ride
             e.HasQueryFilter(o =>

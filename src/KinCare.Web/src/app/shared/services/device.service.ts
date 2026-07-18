@@ -37,8 +37,8 @@ export class DeviceService {
 
       await this.http
         .post(`${this.api}/devices/register`, {
-          token,
-          platform: 'web',
+          fcmToken: token,
+          deviceName: 'web',
         })
         .toPromise();
     } catch {

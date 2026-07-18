@@ -50,7 +50,9 @@ public class TrackingEndpointsTests : IDisposable
             .Returns(Task.CompletedTask);
 
         var twilioConfig = Options.Create(new TwilioConfig());
-        var twilioDispatch = new TwilioDispatchService(twilioConfig, NullLogger<TwilioDispatchService>.Instance);
+        var twilioAppConfig = Options.Create(new AppConfig());
+        var twilioDispatch = new TwilioDispatchService(twilioConfig, twilioAppConfig, NullLogger<TwilioDispatchService>.Instance);
+        var fcm = new FcmService(_db, Options.Create(new FcmConfig()), NullLogger<FcmService>.Instance);
 
         var planGate = new PlanGate();
         var dispatchRouter = new DispatchRouter(_db, planGate);
@@ -62,6 +64,7 @@ public class TrackingEndpointsTests : IDisposable
             dispatchRouter,
             _mockHub.Object,
             twilioDispatch,
+            fcm,
             appConfig,
             NullLogger<RideService>.Instance,
             scopeFactory);

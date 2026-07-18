@@ -10,11 +10,13 @@ namespace KinCare.API.Services.Dispatch;
 public class TwilioDispatchService
 {
     private readonly TwilioConfig _config;
+    private readonly AppConfig _appConfig;
     private readonly ILogger<TwilioDispatchService> _logger;
 
-    public TwilioDispatchService(IOptions<TwilioConfig> config, ILogger<TwilioDispatchService> logger)
+    public TwilioDispatchService(IOptions<TwilioConfig> config, IOptions<AppConfig> appConfig, ILogger<TwilioDispatchService> logger)
     {
         _config = config.Value;
+        _appConfig = appConfig.Value;
         _logger = logger;
     }
 
@@ -56,9 +58,14 @@ public class TwilioDispatchService
               "8 = Trip Complete\n" +
               "9 = Report Issue";
 
+        var trackLine = !string.IsNullOrEmpty(ride.TrackingToken)
+            ? $"\nOr check in here: {_appConfig.BaseUrl}/track/{ride.TrackingToken}"
+            : "";
+
         var body = $"KinCare Ride #{ride.Id.ToString()[..8]}\n" +
                    $"{checkpoint}\n" +
-                   replyMenu;
+                   replyMenu +
+                   trackLine;
 
         await SendSmsAsync(vendor.PhoneNumber, body);
     }

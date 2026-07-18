@@ -6,6 +6,7 @@ public class RideDispatchOffer
     public Guid RideId { get; set; }
     public Guid VendorId { get; set; }
     public string Status { get; set; } = "Pending"; // Pending | Accepted | Declined | Superseded
+    public string? TrackingToken { get; set; }
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }
 

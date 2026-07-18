@@ -1,6 +1,7 @@
 using KinCare.API.Data;
 using KinCare.API.Domain;
 using KinCare.API.Hubs;
+using KinCare.API.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,12 +11,14 @@ public class EscalationJob
 {
     private readonly AppDbContext _db;
     private readonly IHubContext<RideStatusHub> _hubContext;
+    private readonly FcmService _fcm;
     private readonly ILogger<EscalationJob> _logger;
 
-    public EscalationJob(AppDbContext db, IHubContext<RideStatusHub> hubContext, ILogger<EscalationJob> logger)
+    public EscalationJob(AppDbContext db, IHubContext<RideStatusHub> hubContext, FcmService fcm, ILogger<EscalationJob> logger)
     {
         _db = db;
         _hubContext = hubContext;
+        _fcm = fcm;
         _logger = logger;
     }
 
@@ -58,6 +61,9 @@ public class EscalationJob
                     ride.VendorId,
                     Message = escalationType
                 });
+
+            try { await _fcm.SendToFacilityUsersAsync(ride.FacilityId, "⚠️ Ride escalation", escalationType); }
+            catch (Exception ex) { _logger.LogError(ex, "Failed to send FCM escalation push for ride {RideId}", ride.Id); }
 
             _logger.LogInformation("Escalation fired for ride {RideId}: {Type}", ride.Id, escalationType);
         }

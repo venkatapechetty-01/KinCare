@@ -17,6 +17,7 @@ public class RideService
     private readonly DispatchRouter _dispatchRouter;
     private readonly IHubContext<RideStatusHub> _hubContext;
     private readonly TwilioDispatchService _twilioDispatch;
+    private readonly FcmService _fcm;
     private readonly AppConfig _appConfig;
     private readonly ILogger<RideService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -27,6 +28,7 @@ public class RideService
         DispatchRouter dispatchRouter,
         IHubContext<RideStatusHub> hubContext,
         TwilioDispatchService twilioDispatch,
+        FcmService fcm,
         IOptions<AppConfig> appConfig,
         ILogger<RideService> logger,
         IServiceScopeFactory scopeFactory)
@@ -36,6 +38,7 @@ public class RideService
         _dispatchRouter = dispatchRouter;
         _hubContext = hubContext;
         _twilioDispatch = twilioDispatch;
+        _fcm = fcm;
         _appConfig = appConfig.Value;
         _logger = logger;
         _scopeFactory = scopeFactory;
@@ -153,25 +156,22 @@ public class RideService
 
                 foreach (var v in vendors)
                 {
-                    // Each Smart vendor gets their own unique tracking token in the SMS body
-                    string? vendorTrackingUrl = null;
-                    if (v.CapabilityTier == VendorCapabilityTier.Smart)
+                    // Every vendor — Basic or Smart tier — gets their own unique tracking
+                    // token and link, usable both to accept the ride and (once accepted) to
+                    // check in through trip completion, in addition to numbered SMS replies.
+                    var token = Guid.NewGuid().ToString("N");
+                    var vendorTrackingUrl = $"{_appConfig.BaseUrl}/track/{token}";
+                    try
                     {
-                        var token = Guid.NewGuid().ToString("N");
-                        vendorTrackingUrl = $"{_appConfig.BaseUrl}/track/{token}";
-                        // Store the token on the offer so we can activate it if they accept
-                        try
+                        var offer = await scopedDb.RideDispatchOffers
+                            .FirstOrDefaultAsync(o => o.RideId == rideId && o.VendorId == v.Id);
+                        if (offer is not null)
                         {
-                            var offer = await scopedDb.RideDispatchOffers
-                                .FirstOrDefaultAsync(o => o.RideId == rideId && o.VendorId == v.Id);
-                            if (offer is not null)
-                            {
-                                offer.Status = $"Pending|token:{token}";
-                                await scopedDb.SaveChangesAsync();
-                            }
+                            offer.TrackingToken = token;
+                            await scopedDb.SaveChangesAsync();
                         }
-                        catch (Exception ex) { _logger.LogError(ex, "Failed to store tracking token for offer"); }
                     }
+                    catch (Exception ex) { _logger.LogError(ex, "Failed to store tracking token for offer"); }
 
                     try { await _twilioDispatch.SendBookingSmsAsync(ride, v, resident, vendorTrackingUrl); }
                     catch (Exception ex) { _logger.LogError(ex, "Failed to send booking SMS to vendor {VendorId}", v.Id); }
@@ -217,7 +217,7 @@ public class RideService
             }
 
             var offer = await _db.RideDispatchOffers
-                .FirstOrDefaultAsync(o => o.RideId == rideId && o.VendorId == vendorId && o.Status.StartsWith("Pending"));
+                .FirstOrDefaultAsync(o => o.RideId == rideId && o.VendorId == vendorId && o.Status == "Pending");
             if (offer is null)
             {
                 _logger.LogWarning(
@@ -230,10 +230,11 @@ public class RideService
             // Assign vendor to ride and advance status
             ride.VendorId = vendorId;
 
-            // Activate tracking token if the offer had one
-            var tokenPart = offer.Status.Contains("|token:") ? offer.Status.Split("|token:")[1] : null;
-            if (tokenPart is not null)
-                ride.TrackingToken = tokenPart;
+            // Activate the offer's tracking token onto the ride — the same URL the vendor
+            // already has keeps working, now resolving to the status tracker instead of the
+            // pre-acceptance Accept/Decline page.
+            if (offer.TrackingToken is not null)
+                ride.TrackingToken = offer.TrackingToken;
 
             offer.Status = "Accepted";
             offer.RespondedAt = DateTime.UtcNow;
@@ -251,7 +252,7 @@ public class RideService
 
             // Supersede all other pending offers
             var otherOffers = await _db.RideDispatchOffers
-                .Where(o => o.RideId == rideId && o.VendorId != vendorId && o.Status.StartsWith("Pending"))
+                .Where(o => o.RideId == rideId && o.VendorId != vendorId && o.Status == "Pending")
                 .Include(o => o.Vendor)
                 .ToListAsync();
 
@@ -299,6 +300,53 @@ public class RideService
             await tx.RollbackAsync();
             throw;
         }
+    }
+
+    // Called by the Twilio webhook (reply "2") and the vendor tracking-page Decline
+    // button. Marks this vendor's offer Declined; if it was the last Pending offer on
+    // the ride, cancels the ride automatically since no one is left to service it.
+    public async Task<bool> DeclineOfferAsync(Guid rideId, Guid vendorId, string triggeredBy, string notes)
+    {
+        var offer = await _db.RideDispatchOffers
+            .Include(o => o.Ride)
+            .Include(o => o.Vendor)
+            .FirstOrDefaultAsync(o => o.RideId == rideId && o.VendorId == vendorId && o.Status == "Pending");
+
+        if (offer is null)
+        {
+            _logger.LogWarning(
+                "DeclineOffer rejected: no pending offer for RideId={RideId} VendorId={VendorId}",
+                rideId, vendorId);
+            return false;
+        }
+
+        offer.Status = "Declined";
+        offer.RespondedAt = DateTime.UtcNow;
+
+        _db.RideEvents.Add(new RideEvent
+        {
+            Id = Guid.NewGuid(),
+            RideId = offer.RideId,
+            FromStatus = offer.Ride.Status,
+            ToStatus = offer.Ride.Status,
+            TriggeredBy = triggeredBy,
+            Notes = $"Vendor {offer.Vendor.Name} declined. {notes}"
+        });
+        await _db.SaveChangesAsync();
+
+        // Check if ALL vendors declined — if so mark Cancelled
+        var anyPending = await _db.RideDispatchOffers
+            .AnyAsync(o => o.RideId == offer.RideId && o.Status == "Pending");
+        if (!anyPending)
+        {
+            await AdvanceStatusAsync(offer.RideId, RideStatus.Cancelled, triggeredBy, $"All vendors declined. {notes}");
+        }
+
+        _logger.LogInformation(
+            "DeclineOffer success: RideId={RideId} VendorId={VendorId} AllDeclined={AllDeclined}",
+            rideId, vendorId, !anyPending);
+
+        return true;
     }
 
     public async Task<Ride> AdvanceStatusAsync(
@@ -358,6 +406,39 @@ public class RideService
         _logger.LogInformation(
             "AdvanceStatus complete: RideId={RideId} {FromStatus} → {ToStatus} TriggeredBy={TriggeredBy}",
             rideId, fromStatus, newStatus, triggeredBy);
+
+        // Push a notification to every coordinator device at this facility for the two
+        // moments they most need to know about without having the dashboard open: the
+        // vehicle showing up, and the resident safely at their destination.
+        if (newStatus == RideStatus.Arrived || newStatus == RideStatus.Dropped)
+        {
+            var facilityId = ride.FacilityId;
+            var residentId = ride.ResidentId;
+            var vendorId = ride.VendorId;
+            var destinationAddress = ride.DestinationAddress;
+            _ = Task.Run(async () =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var scopedFcm = scope.ServiceProvider.GetRequiredService<FcmService>();
+
+                var residentName = residentId.HasValue
+                    ? await scopedDb.Residents.Where(r => r.Id == residentId.Value)
+                        .Select(r => r.FirstName + " " + r.LastName).FirstOrDefaultAsync()
+                    : null;
+                var vendorName = vendorId.HasValue
+                    ? await scopedDb.Vendors.Where(v => v.Id == vendorId.Value)
+                        .Select(v => v.Name).FirstOrDefaultAsync()
+                    : null;
+
+                var (title, body) = newStatus == RideStatus.Arrived
+                    ? ("🚐 Driver arrived", $"{vendorName ?? "Driver"} is outside for {residentName ?? "resident"}")
+                    : ("✅ Trip complete", $"{residentName ?? "Resident"} safely at {destinationAddress}");
+
+                try { await scopedFcm.SendToFacilityUsersAsync(facilityId, title, body); }
+                catch (Exception ex) { _logger.LogError(ex, "Failed to send FCM push for ride {RideId} status {Status}", rideId, newStatus); }
+            });
+        }
 
         // Coordinator just requested the return leg — let the vendor know via SMS.
         if (newStatus == RideStatus.AwaitingReturn && ride.VendorId.HasValue)
@@ -482,7 +563,7 @@ public class RideService
                 o.VendorId,
                 o.Vendor.Name,
                 o.Vendor.PhoneNumber,
-                o.Status.StartsWith("Pending") ? "Pending" : o.Status,
+                o.Status,
                 o.SentAt,
                 o.RespondedAt))
             .ToListAsync();

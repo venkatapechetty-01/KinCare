@@ -37,6 +37,7 @@ public static class TwilioWebhookHandler
         HttpContext httpContext,
         AppDbContext db,
         RideService rideService,
+        FcmService fcm,
         IConfiguration config,
         ILogger<Program> logger)
     {
@@ -86,7 +87,7 @@ public static class TwilioWebhookHandler
             var offer = await db.RideDispatchOffers
                 .Include(o => o.Ride)
                 .Where(o => o.VendorId == vendor.Id
-                    && o.Status.StartsWith("Pending")
+                    && o.Status == "Pending"
                     && o.Ride.Status == RideStatus.Dispatched)
                 .OrderByDescending(o => o.SentAt)
                 .FirstOrDefaultAsync();
@@ -108,39 +109,15 @@ public static class TwilioWebhookHandler
         if (replyDigit == 2)
         {
             var offer = await db.RideDispatchOffers
-                .Include(o => o.Ride)
                 .Where(o => o.VendorId == vendor.Id
-                    && o.Status.StartsWith("Pending")
+                    && o.Status == "Pending"
                     && o.Ride.Status == RideStatus.Dispatched)
                 .OrderByDescending(o => o.SentAt)
                 .FirstOrDefaultAsync();
 
             if (offer is not null)
-            {
-                offer.Status = "Declined";
-                offer.RespondedAt = DateTime.UtcNow;
+                await rideService.DeclineOfferAsync(offer.RideId, vendor.Id, "vendor_sms", $"twilio_sid:{messageSid}");
 
-                db.RideEvents.Add(new RideEvent
-                {
-                    Id = Guid.NewGuid(),
-                    RideId = offer.RideId,
-                    FromStatus = offer.Ride.Status,
-                    ToStatus = offer.Ride.Status,
-                    TriggeredBy = "vendor_sms",
-                    Notes = $"Vendor {vendor.Name} declined. twilio_sid:{messageSid}"
-                });
-                await db.SaveChangesAsync();
-
-                // Check if ALL vendors declined — if so mark Cancelled
-                var anyPending = await db.RideDispatchOffers
-                    .AnyAsync(o => o.RideId == offer.RideId && o.Status.StartsWith("Pending"));
-                if (!anyPending)
-                {
-                    await rideService.AdvanceStatusAsync(
-                        offer.RideId, RideStatus.Cancelled, "vendor_sms",
-                        $"All vendors declined. twilio_sid:{messageSid}");
-                }
-            }
             return Results.Ok();
         }
 
@@ -204,6 +181,17 @@ public static class TwilioWebhookHandler
                     Notes = $"Issue reported by vendor. twilio_sid:{messageSid}"
                 });
                 await db.SaveChangesAsync();
+
+                var residentName = ride.ResidentId.HasValue
+                    ? await db.Residents.Where(r => r.Id == ride.ResidentId.Value)
+                        .Select(r => r.FirstName + " " + r.LastName).FirstOrDefaultAsync()
+                    : null;
+                try
+                {
+                    await fcm.SendToFacilityUsersAsync(ride.FacilityId, "🚨 Issue reported",
+                        $"{vendor.Name} reported an issue for {residentName ?? "resident"}");
+                }
+                catch (Exception ex) { logger.LogError(ex, "Failed to send FCM issue-report push for ride {RideId}", ride.Id); }
             }
         }
 

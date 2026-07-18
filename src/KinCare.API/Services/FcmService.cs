@@ -34,7 +34,7 @@ public class FcmService
         }
     }
 
-    public async Task SendToFacilityUsersAsync(Guid facilityId, string title, string body)
+    public virtual async Task SendToFacilityUsersAsync(Guid facilityId, string title, string body)
     {
         if (!_initialized)
         {
@@ -68,7 +68,7 @@ public class FcmService
         }
     }
 
-    public async Task SendToUserAsync(Guid userId, string title, string body)
+    public virtual async Task SendToUserAsync(Guid userId, string title, string body)
     {
         if (!_initialized) return;
 

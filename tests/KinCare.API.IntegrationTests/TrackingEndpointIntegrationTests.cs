@@ -98,6 +98,73 @@ public class TrackingEndpointIntegrationTests : IClassFixture<CustomWebApplicati
         return ride.Id;
     }
 
+    private async Task<Guid> SeedVendorAsync(Guid facilityId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var vendor = new Vendor
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = facilityId,
+            Name = "Tracking Test Vendor",
+            PhoneNumber = $"+1555{Guid.NewGuid().ToString("N")[..7]}",
+            VendorType = VendorType.Wheelchair,
+            DispatchMethod = DispatchMethod.SmsNemt,
+            CapabilityTier = VendorCapabilityTier.Basic,
+            IsActive = true
+        };
+        db.Vendors.Add(vendor);
+        await db.SaveChangesAsync();
+        return vendor.Id;
+    }
+
+    // Mirrors what RideService.BookRideAsync does for every vendor at broadcast time:
+    // a Dispatched ride with no TrackingToken of its own yet, and a Pending offer per
+    // vendor carrying its own tracking token (only activated onto the ride upon claim).
+    private async Task<(Guid RideId, Guid OfferId)> SeedDispatchedRideWithOfferAsync(
+        Guid orgId, Guid facilityId, Guid vendorId, string offerToken, string offerStatus = "Pending")
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var ride = new Ride
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = facilityId,
+            OrganizationId = orgId,
+            Status = RideStatus.Dispatched,
+            DispatchChannel = DispatchChannel.SmsNemt,
+            PickupTime = DateTime.UtcNow.AddHours(2),
+            PickupAddress = "123 Main St, Detroit, MI",
+            DestinationAddress = "456 Oak Ave, Detroit, MI",
+        };
+        db.Rides.Add(ride);
+
+        db.RideEvents.Add(new RideEvent
+        {
+            Id = Guid.NewGuid(),
+            RideId = ride.Id,
+            FromStatus = RideStatus.Dispatched,
+            ToStatus = RideStatus.Dispatched,
+            TriggeredBy = "system",
+            Notes = "Seeded for tracking test"
+        });
+
+        var offer = new RideDispatchOffer
+        {
+            Id = Guid.NewGuid(),
+            RideId = ride.Id,
+            VendorId = vendorId,
+            Status = offerStatus,
+            TrackingToken = offerToken
+        };
+        db.RideDispatchOffers.Add(offer);
+
+        await db.SaveChangesAsync();
+        return (ride.Id, offer.Id);
+    }
+
     // ── Tests ─────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -221,5 +288,147 @@ public class TrackingEndpointIntegrationTests : IClassFixture<CustomWebApplicati
 
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("EnRoute");
+    }
+
+    // ── Accept / Decline via tracking link ──────────────────────────────────────
+
+    [Fact]
+    public async Task GetTrackingPage_PendingOfferToken_ReturnsAcceptPageHtml()
+    {
+        var (orgId, facilityId) = await SeedOrgAndFacilityAsync();
+        var vendorId = await SeedVendorAsync(facilityId);
+        var offerToken = Guid.NewGuid().ToString("N");
+        await SeedDispatchedRideWithOfferAsync(orgId, facilityId, vendorId, offerToken);
+
+        var response = await _client.GetAsync($"/track/{offerToken}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            $"Expected 200 but got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Accept This Ride");
+    }
+
+    [Fact]
+    public async Task GetTrackingPage_SupersededOfferToken_ReturnsAlreadyTakenHtml()
+    {
+        var (orgId, facilityId) = await SeedOrgAndFacilityAsync();
+        var vendorId = await SeedVendorAsync(facilityId);
+        var offerToken = Guid.NewGuid().ToString("N");
+        await SeedDispatchedRideWithOfferAsync(orgId, facilityId, vendorId, offerToken, offerStatus: "Superseded");
+
+        var response = await _client.GetAsync($"/track/{offerToken}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Already Taken");
+    }
+
+    [Fact]
+    public async Task TrackAccept_ValidPendingOffer_ClaimsRideAndActivatesSameToken()
+    {
+        var (orgId, facilityId) = await SeedOrgAndFacilityAsync();
+        var vendorId = await SeedVendorAsync(facilityId);
+        var offerToken = Guid.NewGuid().ToString("N");
+        var (rideId, _) = await SeedDispatchedRideWithOfferAsync(orgId, facilityId, vendorId, offerToken);
+
+        var response = await _client.PostAsJsonAsync("/api/rides/track-accept", new { TrackingToken = offerToken });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            $"Expected 200 but got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ride = await db.Rides.FindAsync(rideId);
+        ride!.Status.Should().Be(RideStatus.Confirmed);
+        ride.VendorId.Should().Be(vendorId);
+        // Same link keeps working post-acceptance — the offer's token becomes the ride's own.
+        ride.TrackingToken.Should().Be(offerToken);
+
+        var reloadResponse = await _client.GetAsync($"/track/{offerToken}");
+        var reloadBody = await reloadResponse.Content.ReadAsStringAsync();
+        reloadBody.Should().NotContain("Accept This Ride");
+    }
+
+    [Fact]
+    public async Task TrackAccept_RideAlreadyClaimedBySomeoneElse_ReturnsBadRequest()
+    {
+        var (orgId, facilityId) = await SeedOrgAndFacilityAsync();
+        var vendorId = await SeedVendorAsync(facilityId);
+        var offerToken = Guid.NewGuid().ToString("N");
+        var (rideId, _) = await SeedDispatchedRideWithOfferAsync(orgId, facilityId, vendorId, offerToken);
+
+        // Simulate another vendor having already claimed the ride first.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ride = await db.Rides.FindAsync(rideId);
+            ride!.Status = RideStatus.Confirmed;
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _client.PostAsJsonAsync("/api/rides/track-accept", new { TrackingToken = offerToken });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task TrackAccept_UnknownToken_ReturnsNotFound()
+    {
+        var response = await _client.PostAsJsonAsync("/api/rides/track-accept", new { TrackingToken = "no-such-token" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task TrackDecline_LastPendingOffer_CancelsRide()
+    {
+        var (orgId, facilityId) = await SeedOrgAndFacilityAsync();
+        var vendorId = await SeedVendorAsync(facilityId);
+        var offerToken = Guid.NewGuid().ToString("N");
+        var (rideId, _) = await SeedDispatchedRideWithOfferAsync(orgId, facilityId, vendorId, offerToken);
+
+        var response = await _client.PostAsJsonAsync("/api/rides/track-decline", new { TrackingToken = offerToken });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            $"Expected 200 but got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ride = await db.Rides.FindAsync(rideId);
+        ride!.Status.Should().Be(RideStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task TrackDecline_OtherOffersStillPending_RideStaysDispatched()
+    {
+        var (orgId, facilityId) = await SeedOrgAndFacilityAsync();
+        var vendor1 = await SeedVendorAsync(facilityId);
+        var vendor2 = await SeedVendorAsync(facilityId);
+        var offerToken1 = Guid.NewGuid().ToString("N");
+        var (rideId, _) = await SeedDispatchedRideWithOfferAsync(orgId, facilityId, vendor1, offerToken1);
+
+        // Second vendor's offer on the same ride.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.RideDispatchOffers.Add(new RideDispatchOffer
+            {
+                Id = Guid.NewGuid(),
+                RideId = rideId,
+                VendorId = vendor2,
+                Status = "Pending",
+                TrackingToken = Guid.NewGuid().ToString("N")
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _client.PostAsJsonAsync("/api/rides/track-decline", new { TrackingToken = offerToken1 });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ride = await verifyDb.Rides.FindAsync(rideId);
+        ride!.Status.Should().Be(RideStatus.Dispatched);
     }
 }

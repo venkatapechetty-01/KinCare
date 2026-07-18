@@ -54,8 +54,10 @@ public class TwilioWebhookHandlerTests : IDisposable
             .Returns(Task.CompletedTask);
 
         var twilioConfig = Options.Create(new TwilioConfig());
+        var twilioAppConfig = Options.Create(new AppConfig());
         var twilioLogger = NullLogger<TwilioDispatchService>.Instance;
-        var twilioDispatch = new TwilioDispatchService(twilioConfig, twilioLogger);
+        var twilioDispatch = new TwilioDispatchService(twilioConfig, twilioAppConfig, twilioLogger);
+        var fcm = new FcmService(_db, Options.Create(new FcmConfig()), NullLogger<FcmService>.Instance);
 
         var planGate = new PlanGate();
         var dispatchRouter = new DispatchRouter(_db, planGate);
@@ -69,6 +71,7 @@ public class TwilioWebhookHandlerTests : IDisposable
             dispatchRouter,
             mockHub.Object,
             twilioDispatch,
+            fcm,
             appConfig,
             NullLogger<RideService>.Instance,
             scopeFactory);

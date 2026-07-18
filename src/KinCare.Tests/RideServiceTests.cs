@@ -22,6 +22,7 @@ public class RideServiceTests : IDisposable
     private readonly Mock<IHubContext<RideStatusHub>> _mockHub;
     private readonly Mock<IHubClients> _mockClients;
     private readonly Mock<IClientProxy> _mockGroup;
+    private readonly Mock<FcmService> _mockFcm;
     private readonly RideStateMachine _stateMachine;
 
     public RideServiceTests()
@@ -32,14 +33,6 @@ public class RideServiceTests : IDisposable
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         _db = new AppDbContext(options);
-
-        // Fire-and-forget background work in RideService resolves a fresh AppDbContext
-        // from a new DI scope — point it at the same in-memory database as _db.
-        var services = new ServiceCollection();
-        services.AddDbContext<AppDbContext>(o => o
-            .UseInMemoryDatabase(dbName)
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
-        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         _mockHub = new Mock<IHubContext<RideStatusHub>>();
         _mockClients = new Mock<IHubClients>();
@@ -54,8 +47,27 @@ public class RideServiceTests : IDisposable
         _stateMachine = new RideStateMachine();
 
         var twilioConfig = Options.Create(new TwilioConfig());
+        var twilioAppConfig = Options.Create(new AppConfig());
         var twilioLogger = NullLogger<TwilioDispatchService>.Instance;
-        var twilioDispatch = new TwilioDispatchService(twilioConfig, twilioLogger);
+        var twilioDispatch = new TwilioDispatchService(twilioConfig, twilioAppConfig, twilioLogger);
+
+        var fcmConfig = Options.Create(new FcmConfig());
+        var fcmLogger = NullLogger<FcmService>.Instance;
+        _mockFcm = new Mock<FcmService>(_db, fcmConfig, fcmLogger);
+        _mockFcm.Setup(f => f.SendToFacilityUsersAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        // Fire-and-forget background work in RideService (SMS dispatch, FCM push) resolves
+        // a fresh AppDbContext AND a fresh FcmService from a new DI scope rather than using
+        // the instances above directly — both need to be registered here too, or the
+        // scope's GetRequiredService<FcmService>() throws (service not found) inside the
+        // unawaited Task.Run and the push silently never happens.
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(o => o
+            .UseInMemoryDatabase(dbName)
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+        services.AddSingleton<FcmService>(_mockFcm.Object);
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         var planGate = new PlanGate();
         var dispatchRouter = new DispatchRouter(_db, planGate);
@@ -69,6 +81,7 @@ public class RideServiceTests : IDisposable
             dispatchRouter,
             _mockHub.Object,
             twilioDispatch,
+            _mockFcm.Object,
             appConfig,
             logger,
             scopeFactory);
@@ -174,6 +187,53 @@ public class RideServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AdvanceStatusAsync_ToArrived_SendsFcmPush()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.EnRoute);
+
+        await _sut.AdvanceStatusAsync(ride.Id, RideStatus.Arrived, "test");
+        await Task.Delay(300); // let the fire-and-forget FCM push (Task.Run) complete
+
+        _mockFcm.Verify(f => f.SendToFacilityUsersAsync(
+            facility.Id,
+            It.Is<string>(t => t.Contains("arrived", StringComparison.OrdinalIgnoreCase)),
+            It.IsAny<string>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task AdvanceStatusAsync_ToDropped_SendsFcmPush()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.AtDestination);
+
+        await _sut.AdvanceStatusAsync(ride.Id, RideStatus.Dropped, "test");
+        await Task.Delay(300);
+
+        _mockFcm.Verify(f => f.SendToFacilityUsersAsync(
+            facility.Id,
+            It.Is<string>(t => t.Contains("complete", StringComparison.OrdinalIgnoreCase)),
+            It.IsAny<string>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task AdvanceStatusAsync_ToConfirmed_DoesNotSendFcmPush()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
+
+        await _sut.AdvanceStatusAsync(ride.Id, RideStatus.Confirmed, "test");
+        await Task.Delay(300);
+
+        _mockFcm.Verify(f => f.SendToFacilityUsersAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     public async Task AdvanceStatusAsync_WithOptionalOrgId_MatchingOrg_Succeeds()
     {
         var org = SeedOrg();
@@ -263,7 +323,7 @@ public class RideServiceTests : IDisposable
         var facility = SeedFacility(org.Id);
         var vendor = SeedVendor(facility.Id, DispatchMethod.SmsNemt, VendorCapabilityTier.Smart);
         var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
-        SeedOffer(ride.Id, vendor.Id, "Pending|token:abc123");
+        SeedOffer(ride.Id, vendor.Id, "Pending", trackingToken: "abc123");
 
         await _sut.ClaimRideAsync(ride.Id, vendor.Id, "SMS789");
 
@@ -298,6 +358,74 @@ public class RideServiceTests : IDisposable
         SeedOffer(ride.Id, vendor.Id, "Accepted");
 
         var result = await _sut.ClaimRideAsync(ride.Id, vendor.Id, "SMS_DUP");
+
+        result.Should().BeFalse();
+    }
+
+    // ── DeclineOfferAsync ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeclineOfferAsync_MarksOfferDeclined()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var vendor = SeedVendor(facility.Id, DispatchMethod.SmsNemt);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
+        SeedOffer(ride.Id, vendor.Id, "Pending");
+
+        var result = await _sut.DeclineOfferAsync(ride.Id, vendor.Id, "vendor_sms", "twilio_sid:SMS1");
+
+        result.Should().BeTrue();
+        var offer = await _db.RideDispatchOffers.FirstAsync(o => o.RideId == ride.Id && o.VendorId == vendor.Id);
+        offer.Status.Should().Be("Declined");
+        offer.RespondedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task DeclineOfferAsync_LastPendingOffer_CancelsRide()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var vendor = SeedVendor(facility.Id, DispatchMethod.SmsNemt);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
+        SeedOffer(ride.Id, vendor.Id, "Pending");
+
+        await _sut.DeclineOfferAsync(ride.Id, vendor.Id, "vendor_sms", "twilio_sid:SMS1");
+
+        var dbRide = await _db.Rides.FindAsync(ride.Id);
+        dbRide!.Status.Should().Be(RideStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task DeclineOfferAsync_OtherOffersStillPending_RideNotCancelled()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var vendor1 = SeedVendor(facility.Id, DispatchMethod.SmsNemt);
+        var vendor2 = SeedVendor(facility.Id, DispatchMethod.SmsNemt);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
+        SeedOffer(ride.Id, vendor1.Id, "Pending");
+        SeedOffer(ride.Id, vendor2.Id, "Pending");
+
+        await _sut.DeclineOfferAsync(ride.Id, vendor1.Id, "vendor_sms", "twilio_sid:SMS1");
+
+        var dbRide = await _db.Rides.FindAsync(ride.Id);
+        dbRide!.Status.Should().Be(RideStatus.Dispatched);
+        var otherOffer = await _db.RideDispatchOffers.FirstAsync(o => o.RideId == ride.Id && o.VendorId == vendor2.Id);
+        otherOffer.Status.Should().Be("Pending");
+    }
+
+    [Fact]
+    public async Task DeclineOfferAsync_NoPendingOfferForVendor_ReturnsFalse()
+    {
+        var org = SeedOrg();
+        var facility = SeedFacility(org.Id);
+        var vendor = SeedVendor(facility.Id, DispatchMethod.SmsNemt);
+        var otherVendor = SeedVendor(facility.Id, DispatchMethod.SmsNemt);
+        var ride = SeedRide(facility.Id, org.Id, RideStatus.Dispatched);
+        SeedOffer(ride.Id, otherVendor.Id, "Pending");
+
+        var result = await _sut.DeclineOfferAsync(ride.Id, vendor.Id, "vendor_sms", "twilio_sid:SMS2");
 
         result.Should().BeFalse();
     }
@@ -549,14 +677,15 @@ public class RideServiceTests : IDisposable
         return ride;
     }
 
-    private RideDispatchOffer SeedOffer(Guid rideId, Guid vendorId, string status)
+    private RideDispatchOffer SeedOffer(Guid rideId, Guid vendorId, string status, string? trackingToken = null)
     {
         var offer = new RideDispatchOffer
         {
             Id = Guid.NewGuid(),
             RideId = rideId,
             VendorId = vendorId,
-            Status = status
+            Status = status,
+            TrackingToken = trackingToken
         };
         _db.RideDispatchOffers.Add(offer);
         _db.SaveChanges();
