@@ -111,7 +111,7 @@ test.describe('Org — API', () => {
       headers: { Authorization: `Bearer ${token}` },
       data: {
         email: `invite-${Date.now()}@kincare-test.invalid`,
-        role: 'Coordinator',
+        role: 'FacilityAdmin',
         facilityId,
       },
     });

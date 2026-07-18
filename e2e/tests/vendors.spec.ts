@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { API_URL, loginViaUI, getTestCredentials, registerNewOrg } from './helpers/auth.helper';
+import { API_URL, loginViaUI, getTestCredentials, registerNewOrg, useAuthToken } from './helpers/auth.helper';
 
 // ─── Page load ────────────────────────────────────────────────────────────────
 
@@ -9,7 +9,7 @@ test.describe('Vendors — page', () => {
     if (!creds) return test.skip();
     await loginViaUI(page, creds);
     await page.goto('/vendors');
-    await expect(page.locator('text=Transport Vendors')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Drivers')).toBeVisible({ timeout: 10000 });
   });
 
   test('vendors page shows empty state or vendor cards', async ({ page }) => {
@@ -20,6 +20,57 @@ test.describe('Vendors — page', () => {
     const hasCards = await page.locator('mat-card.vendor-card').count();
     const hasEmpty = await page.locator('text=No vendors found').isVisible().catch(() => false);
     expect(hasCards > 0 || hasEmpty).toBeTruthy();
+  });
+});
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+// Self-contained via registerNewOrg + useAuthToken (no env-var test credentials needed) —
+// regression test for a real bug: the "Drivers" page existed and worked, but no sidebar
+// link ever pointed to it, so it was unreachable through normal navigation.
+
+test.describe('Vendors — navigation', () => {
+  test('"Drivers" sidebar link is present and navigates to /vendors', async ({ page, request }) => {
+    const { accessToken } = await registerNewOrg(request);
+    await useAuthToken(page, accessToken);
+    await page.goto('/dashboard');
+
+    const driversLink = page.locator('a[routerLink="/vendors"]');
+    await expect(driversLink).toBeVisible({ timeout: 10000 });
+    await expect(driversLink).toContainText('Drivers');
+
+    await driversLink.click();
+    await page.waitForURL('**/vendors', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText('Drivers');
+  });
+
+  // Regression test: "Edit Driver" used to just show a toast ("Edit vendor: X") and never
+  // actually open an edit form — the button existed but did nothing real.
+  test('"Edit Driver" opens a pre-filled edit dialog, not a stub toast', async ({ page, request }) => {
+    const { accessToken } = await registerNewOrg(request);
+    await request.post(`${API_URL}/api/vendors`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      data: {
+        name: 'Editable Driver', phoneNumber: '+15125550050',
+        vendorType: 'Ambulatory', dispatchMethod: 'SmsTaxi', capabilityTier: 'Basic',
+      },
+    });
+
+    await useAuthToken(page, accessToken);
+    await page.goto('/vendors');
+    await expect(page.locator('mat-card.vendor-card')).toHaveCount(1, { timeout: 10000 });
+
+    await page.click('button:has-text("Edit Driver")');
+
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    await expect(dialog.locator('h2')).toContainText('Edit');
+    await expect(dialog.locator('input[formControlName="name"]')).toHaveValue('Editable Driver');
+    await expect(dialog.locator('button:has-text("Save Changes")')).toBeVisible();
+
+    await dialog.locator('input[formControlName="name"]').fill('Renamed Driver');
+    await dialog.locator('button:has-text("Save Changes")').click();
+    await expect(dialog).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('text=Renamed Driver')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -91,6 +142,46 @@ test.describe('Vendors — API CRUD', () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.capabilityTier).toBe('Smart');
+  });
+
+  test('POST /api/vendors accepts and returns Company and ServiceArea', async ({ request }) => {
+    const res = await request.post(`${API_URL}/api/vendors`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        name: 'Jane Driver',
+        phoneNumber: '+15125550005',
+        vendorType: 'Ambulatory',
+        dispatchMethod: 'SmsTaxi',
+        capabilityTier: 'Basic',
+        company: 'Metro Taxi Co',
+        serviceArea: 'Detroit Metro',
+      },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.company).toBe('Metro Taxi Co');
+    expect(body.serviceArea).toBe('Detroit Metro');
+
+    const listRes = await request.get(`${API_URL}/api/vendors`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const created = (await listRes.json()).find((v: any) => v.id === body.id);
+    expect(created.company).toBe('Metro Taxi Co');
+    expect(created.serviceArea).toBe('Detroit Metro');
+  });
+
+  test('POST /api/vendors without Company/ServiceArea still succeeds (optional fields)', async ({ request }) => {
+    const res = await request.post(`${API_URL}/api/vendors`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        name: 'No Company Vendor',
+        phoneNumber: '+15125550006',
+        vendorType: 'Ambulatory',
+        dispatchMethod: 'SmsTaxi',
+        capabilityTier: 'Basic',
+      },
+    });
+    expect(res.ok()).toBeTruthy();
   });
 
   test('GET /api/vendors returns created vendor', async ({ request }) => {

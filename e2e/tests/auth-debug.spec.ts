@@ -78,7 +78,10 @@ test.describe('Auth flow debug', () => {
   });
 
   test('unauthenticated access to dashboard redirects to login', async ({ page }) => {
-    // Clear any existing session
+    // A fresh Playwright context already has no cookies/localStorage, but navigate to the
+    // app's origin first — calling localStorage.clear() before any navigation throws a
+    // SecurityError in Chromium (localStorage is inaccessible on the opaque about:blank origin).
+    await page.goto('/login');
     await page.context().clearCookies();
     await page.evaluate(() => localStorage.clear());
 
