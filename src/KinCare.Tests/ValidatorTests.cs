@@ -241,7 +241,7 @@ public class CreateVendorRequestValidatorTests
     {
         var request = new CreateVendorRequest(
             Guid.NewGuid(), "ABC Taxi", "555-1234",
-            VendorType.Ambulatory, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic);
+            VendorType.Ambulatory, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic, null, null);
         var result = _sut.TestValidate(request);
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -251,7 +251,7 @@ public class CreateVendorRequestValidatorTests
     {
         var request = new CreateVendorRequest(
             Guid.NewGuid(), "", "555-1234",
-            VendorType.Ambulatory, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic);
+            VendorType.Ambulatory, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic, null, null);
         var result = _sut.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Name);
     }
@@ -261,7 +261,7 @@ public class CreateVendorRequestValidatorTests
     {
         var request = new CreateVendorRequest(
             Guid.NewGuid(), "ABC Taxi", "",
-            VendorType.Ambulatory, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic);
+            VendorType.Ambulatory, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic, null, null);
         var result = _sut.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.PhoneNumber);
     }
@@ -271,7 +271,7 @@ public class CreateVendorRequestValidatorTests
     {
         var request = new CreateVendorRequest(
             Guid.NewGuid(), "ABC Taxi", "555-1234",
-            (VendorType)999, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic);
+            (VendorType)999, DispatchMethod.SmsTaxi, VendorCapabilityTier.Basic, null, null);
         var result = _sut.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.VendorType);
     }
@@ -281,7 +281,7 @@ public class CreateVendorRequestValidatorTests
     {
         var request = new CreateVendorRequest(
             Guid.NewGuid(), "ABC Taxi", "555-1234",
-            VendorType.Ambulatory, (DispatchMethod)999, VendorCapabilityTier.Basic);
+            VendorType.Ambulatory, (DispatchMethod)999, VendorCapabilityTier.Basic, null, null);
         var result = _sut.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.DispatchMethod);
     }

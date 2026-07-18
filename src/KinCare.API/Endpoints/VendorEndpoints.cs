@@ -17,6 +17,8 @@ public static class VendorEndpoints
         group.MapPost("/", Create);
         group.MapPut("/{id:guid}", Update);
         group.MapDelete("/{id:guid}", Delete);
+        group.MapPost("/{id:guid}/photo", UploadPhoto).DisableAntiforgery();
+        group.MapDelete("/{id:guid}/photo", RemovePhoto);
     }
 
     private static async Task<IResult> GetAll(
@@ -40,7 +42,8 @@ public static class VendorEndpoints
             .Select(v => new VendorDto(
                 v.Id, v.FacilityId, v.Name, v.PhoneNumber,
                 v.VendorType.ToString(), v.DispatchMethod.ToString(),
-                v.CapabilityTier.ToString(), v.IsActive))
+                v.CapabilityTier.ToString(), v.IsActive, v.PhotoUrl,
+                v.Company, v.ServiceArea))
             .ToListAsync();
 
         return Results.Ok(vendors);
@@ -85,13 +88,19 @@ public static class VendorEndpoints
             PhoneNumber = request.PhoneNumber,
             VendorType = request.VendorType,
             DispatchMethod = request.DispatchMethod,
-            CapabilityTier = request.CapabilityTier
+            CapabilityTier = request.CapabilityTier,
+            Company = request.Company,
+            ServiceArea = request.ServiceArea
         };
 
         db.Vendors.Add(vendor);
         await db.SaveChangesAsync();
 
-        return Results.Created($"/api/vendors/{vendor.Id}", new { id = vendor.Id });
+        return Results.Created($"/api/vendors/{vendor.Id}", new VendorDto(
+            vendor.Id, vendor.FacilityId, vendor.Name, vendor.PhoneNumber,
+            vendor.VendorType.ToString(), vendor.DispatchMethod.ToString(),
+            vendor.CapabilityTier.ToString(), vendor.IsActive, vendor.PhotoUrl,
+            vendor.Company, vendor.ServiceArea));
     }
 
     private static async Task<IResult> Update(
@@ -123,6 +132,8 @@ public static class VendorEndpoints
         vendor.VendorType = request.VendorType;
         vendor.DispatchMethod = request.DispatchMethod;
         vendor.CapabilityTier = request.CapabilityTier;
+        vendor.Company = request.Company;
+        vendor.ServiceArea = request.ServiceArea;
 
         await db.SaveChangesAsync();
         return Results.NoContent();
@@ -149,18 +160,81 @@ public static class VendorEndpoints
         await db.SaveChangesAsync();
         return Results.NoContent();
     }
+
+    private static async Task<IResult> UploadPhoto(
+        Guid id,
+        IFormFile file,
+        HttpContext httpContext,
+        AppDbContext db)
+    {
+        if (file.Length == 0)
+            return Results.BadRequest(new { error = "File is empty." });
+
+        const long maxBytes = 5 * 1024 * 1024; // 5 MB
+        if (file.Length > maxBytes)
+            return Results.BadRequest(new { error = "File exceeds 5 MB limit." });
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+        if (!allowed.Contains(file.ContentType))
+            return Results.BadRequest(new { error = "Only JPEG, PNG, or WebP images are accepted." });
+
+        var tenant = httpContext.GetTenantContext();
+        var vendor = await db.Vendors.Include(v => v.Facility).FirstOrDefaultAsync(v => v.Id == id);
+        if (vendor is null)
+            return Results.NotFound();
+
+        if (vendor.Facility.OrganizationId != tenant.OrganizationId)
+            return Results.Forbid();
+
+        if (tenant.FacilityId.HasValue && vendor.FacilityId != tenant.FacilityId.Value)
+            return Results.Forbid();
+
+        // Store as base64 data URL for portability (small vendor photos only) — same
+        // approach as coordinator profile photos in UserEndpoints.UploadPhoto.
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        vendor.PhotoUrl = $"data:{file.ContentType};base64,{base64}";
+
+        await db.SaveChangesAsync();
+        return Results.Ok(new { photoUrl = vendor.PhotoUrl });
+    }
+
+    private static async Task<IResult> RemovePhoto(
+        Guid id,
+        HttpContext httpContext,
+        AppDbContext db)
+    {
+        var tenant = httpContext.GetTenantContext();
+        var vendor = await db.Vendors.Include(v => v.Facility).FirstOrDefaultAsync(v => v.Id == id);
+        if (vendor is null)
+            return Results.NotFound();
+
+        if (vendor.Facility.OrganizationId != tenant.OrganizationId)
+            return Results.Forbid();
+
+        if (tenant.FacilityId.HasValue && vendor.FacilityId != tenant.FacilityId.Value)
+            return Results.Forbid();
+
+        vendor.PhotoUrl = null;
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
 }
 
 public record VendorDto(
     Guid Id, Guid FacilityId, string Name, string PhoneNumber,
-    string VendorType, string DispatchMethod, string CapabilityTier, bool IsActive);
+    string VendorType, string DispatchMethod, string CapabilityTier, bool IsActive, string? PhotoUrl,
+    string? Company, string? ServiceArea);
 
 public record CreateVendorRequest(
     Guid? FacilityId, string Name, string PhoneNumber,
     VendorType VendorType, DispatchMethod DispatchMethod,
-    VendorCapabilityTier CapabilityTier);
+    VendorCapabilityTier CapabilityTier,
+    string? Company, string? ServiceArea);
 
 public record UpdateVendorRequest(
     string Name, string PhoneNumber,
     VendorType VendorType, DispatchMethod DispatchMethod,
-    VendorCapabilityTier CapabilityTier);
+    VendorCapabilityTier CapabilityTier,
+    string? Company, string? ServiceArea);

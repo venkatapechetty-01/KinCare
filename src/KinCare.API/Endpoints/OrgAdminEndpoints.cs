@@ -95,7 +95,8 @@ public static class OrgAdminEndpoints
         db.Facilities.Add(facility);
         await db.SaveChangesAsync();
 
-        return Results.Created($"/api/org/facilities/{facility.Id}", new { id = facility.Id });
+        return Results.Created($"/api/org/facilities/{facility.Id}",
+            new FacilityDto(facility.Id, facility.Name, facility.Address, facility.Timezone, 0));
     }
 
     private static async Task<IResult> GetUsers(
@@ -261,6 +262,7 @@ public static class OrgAdminEndpoints
                 r.Id,
                 r.Facility.Name,
                 r.Resident != null ? r.Resident.FirstName + " " + r.Resident.LastName : "Unknown",
+                r.VendorId,
                 r.Vendor != null ? r.Vendor.Name : null,
                 r.Vendor != null ? r.Vendor.PhoneNumber : null,
                 r.Vendor != null ? r.Vendor.PhotoUrl : null,
@@ -287,18 +289,40 @@ public static class OrgAdminEndpoints
 
         var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
 
-        var metrics = await db.Facilities
+        var facilityCount = await db.Facilities
             .AsNoTracking()
-            .Where(f => f.OrganizationId == tenant.OrganizationId && f.IsActive)
-            .Select(f => new FacilityMetricsDto(
-                f.Id,
-                f.Name,
-                f.Rides.Count(r => r.CreatedAt >= thirtyDaysAgo),
-                f.Rides.Count(r => r.CreatedAt >= thirtyDaysAgo && r.Status == RideStatus.Completed),
-                f.Rides.Count(r => r.CreatedAt >= thirtyDaysAgo && r.Status == RideStatus.Cancelled)))
-            .ToListAsync();
+            .CountAsync(f => f.OrganizationId == tenant.OrganizationId && f.IsActive);
 
-        return Results.Ok(metrics);
+        var recentRides = db.Rides.AsNoTracking()
+            .Where(r => r.Facility.OrganizationId == tenant.OrganizationId && r.CreatedAt >= thirtyDaysAgo);
+
+        var ridesThisMonth = await recentRides.CountAsync();
+        var completedRides = await recentRides.CountAsync(r => r.Status == RideStatus.Completed);
+        var completionRate = ridesThisMonth == 0 ? 0 : Math.Round(100.0 * completedRides / ridesThisMonth, 1);
+
+        // "Response time" = how long a ride sat waiting before a vendor accepted it
+        // (Dispatched → Confirmed), averaged across the same 30-day window.
+        var responsePairs = await db.RideEvents.AsNoTracking()
+            .Where(e => e.ToStatus == RideStatus.Confirmed
+                && e.Ride.Facility.OrganizationId == tenant.OrganizationId
+                && e.Ride.CreatedAt >= thirtyDaysAgo)
+            .Select(e => new { e.Ride.CreatedAt, e.OccurredAt })
+            .ToListAsync();
+        var avgResponseMinutes = responsePairs.Count == 0
+            ? 0
+            : Math.Round(responsePairs.Average(p => (p.OccurredAt - p.CreatedAt).TotalMinutes), 1);
+
+        var topVendor = await db.Rides.AsNoTracking()
+            .Where(r => r.Facility.OrganizationId == tenant.OrganizationId
+                && r.CreatedAt >= thirtyDaysAgo
+                && r.Status == RideStatus.Completed
+                && r.VendorId != null)
+            .GroupBy(r => r.Vendor!.Name)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefaultAsync();
+
+        return Results.Ok(new OrgMetricsDto(facilityCount, ridesThisMonth, completionRate, avgResponseMinutes, topVendor));
     }
 }
 
@@ -312,9 +336,9 @@ public record OrgUserDto(
     Guid Id, string FirstName, string LastName, string Email,
     string Role, Guid? FacilityId, string? FacilityName, bool IsActive);
 
-public record FacilityMetricsDto(
-    Guid FacilityId, string FacilityName,
-    int TotalRides, int CompletedRides, int CancelledRides);
+public record OrgMetricsDto(
+    int FacilityCount, int RidesThisMonth, double CompletionRate,
+    double AvgResponseMinutes, string? TopVendor);
 
 public record ResidentSummaryDto(
     Guid Id, Guid FacilityId, string FirstName, string LastName,
@@ -323,7 +347,7 @@ public record ResidentSummaryDto(
 
 public record ActiveRideLocationDto(
     Guid Id, string FacilityName, string ResidentName,
-    string? VendorName, string? VendorPhone, string? VendorPhotoUrl,
+    Guid? VendorId, string? VendorName, string? VendorPhone, string? VendorPhotoUrl,
     string Status, string DispatchChannel,
     string PickupAddress, string DestinationAddress, DateTime PickupTime,
     double Lat, double Lng, DateTime? LastLocationAt);

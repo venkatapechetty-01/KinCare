@@ -12,6 +12,8 @@ public class CreateVendorRequestValidator : AbstractValidator<CreateVendorReques
         RuleFor(x => x.VendorType).IsInEnum();
         RuleFor(x => x.DispatchMethod).IsInEnum();
         RuleFor(x => x.CapabilityTier).IsInEnum();
+        RuleFor(x => x.Company).MaximumLength(200);
+        RuleFor(x => x.ServiceArea).MaximumLength(200);
     }
 }
 
@@ -24,5 +26,7 @@ public class UpdateVendorRequestValidator : AbstractValidator<UpdateVendorReques
         RuleFor(x => x.VendorType).IsInEnum();
         RuleFor(x => x.DispatchMethod).IsInEnum();
         RuleFor(x => x.CapabilityTier).IsInEnum();
+        RuleFor(x => x.Company).MaximumLength(200);
+        RuleFor(x => x.ServiceArea).MaximumLength(200);
     }
 }

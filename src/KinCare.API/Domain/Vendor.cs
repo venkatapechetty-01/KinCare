@@ -9,6 +9,8 @@ public class Vendor
     public VendorType VendorType { get; set; }
     public DispatchMethod DispatchMethod { get; set; }
     public VendorCapabilityTier CapabilityTier { get; set; } = VendorCapabilityTier.Basic;
+    public string? Company { get; set; }
+    public string? ServiceArea { get; set; }
     public string? PhotoUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

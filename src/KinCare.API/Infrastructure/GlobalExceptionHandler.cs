@@ -31,6 +31,11 @@ public class GlobalExceptionHandler : IExceptionHandler
             InvalidOperationException => (StatusCodes.Status400BadRequest,  exception.Message,               LogLevel.Warning),
             ArgumentException      => (StatusCodes.Status400BadRequest,     exception.Message,               LogLevel.Warning),
             System.Text.Json.JsonException => (StatusCodes.Status400BadRequest, "Invalid JSON in request body", LogLevel.Warning),
+            // Minimal API's [FromBody] record binding wraps malformed-body failures (including
+            // a string that doesn't match an enum member, e.g. a stale role name) in this type
+            // rather than a bare JsonException — without this case every one of those fell
+            // through to the 500 default instead of a clean 400.
+            Microsoft.AspNetCore.Http.BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid request body", LogLevel.Warning),
             _                      => (StatusCodes.Status500InternalServerError, "An unexpected error occurred", LogLevel.Error),
         };
 

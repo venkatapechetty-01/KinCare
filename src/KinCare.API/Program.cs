@@ -290,6 +290,15 @@ app.UseSerilogRequestLogging(opts =>
         if (ctx.User.Identity?.IsAuthenticated == true)
             diag.Set("UserId", ctx.User.FindFirst("sub")?.Value);
     };
+    // Default GetLevel only escalates to Error on 5xx/exceptions and leaves everything else
+    // at Information — 4xx client errors were indistinguishable from normal traffic in log
+    // search. Splitting Warning out for 4xx makes Render's log filter ("WRN"/"ERR") actually
+    // separate failed calls from successful ones, which plain Information-level logs cannot.
+    opts.GetLevel = (ctx, elapsed, ex) => ex is not null || ctx.Response.StatusCode >= 500
+        ? Serilog.Events.LogEventLevel.Error
+        : ctx.Response.StatusCode >= 400
+            ? Serilog.Events.LogEventLevel.Warning
+            : Serilog.Events.LogEventLevel.Information;
 });
 
 // Swagger UI (Development only)
@@ -309,7 +318,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseIpRateLimiting();
 app.UseCors();
 app.UseAuthentication();

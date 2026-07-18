@@ -109,7 +109,10 @@ public static class ResidentEndpoints
         db.Residents.Add(resident);
         await db.SaveChangesAsync();
 
-        return Results.Created($"/api/residents/{resident.Id}", new { id = resident.Id });
+        return Results.Created($"/api/residents/{resident.Id}", new ResidentDto(
+            resident.Id, resident.FacilityId, resident.FirstName, resident.LastName,
+            resident.NeedsWheelchair, resident.NeedsOxygen, resident.NeedsStretcher, resident.NeedsWalker,
+            resident.DriverNotes));
     }
 
     private static async Task<IResult> BulkCreate(
