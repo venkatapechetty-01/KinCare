@@ -87,6 +87,7 @@ export const ActiveRideLocationSchema = z.object({
   id: z.string().uuid(),
   facilityName: z.string(),
   residentName: z.string(),
+  vendorId: z.string().uuid().nullable().optional(),
   vendorName: z.string().nullable().optional(),
   vendorPhone: z.string().nullable().optional(),
   vendorPhotoUrl: z.string().nullable().optional(),
@@ -137,14 +138,6 @@ export const OrgUserSchema = z.object({
   isActive: z.boolean(),
 });
 
-export const FacilityMetricsSchema = z.object({
-  facilityId: z.string().uuid(),
-  facilityName: z.string(),
-  totalRides: z.number().int(),
-  completedRides: z.number().int(),
-  cancelledRides: z.number().int(),
-});
-
 export const LoginResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
@@ -185,7 +178,6 @@ export const RideSummaryListSchema = z.array(RideSummarySchema);
 export const ActiveRideLocationListSchema = z.array(ActiveRideLocationSchema);
 export const FacilityListSchema = z.array(FacilitySchema);
 export const OrgUserListSchema = z.array(OrgUserSchema);
-export const FacilityMetricsListSchema = z.array(FacilityMetricsSchema);
 export const DispatchOfferListSchema = z.array(DispatchOfferSchema);
 
 export const RideHistorySchema = z.object({
@@ -205,7 +197,6 @@ export type DispatchOffer   = z.infer<typeof DispatchOfferSchema>;
 export type Organization    = z.infer<typeof OrganizationSchema>;
 export type Facility        = z.infer<typeof FacilitySchema>;
 export type OrgUser         = z.infer<typeof OrgUserSchema>;
-export type FacilityMetrics = z.infer<typeof FacilityMetricsSchema>;
 export type LoginResponse   = z.infer<typeof LoginResponseSchema>;
 export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
 export type InviteDetails   = z.infer<typeof InviteDetailsSchema>;

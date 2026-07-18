@@ -6,6 +6,13 @@
     </div>
 
     <div class="login-card">
+      @if (loading) {
+        <div class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Logging in and setting up your profile…</p>
+        </div>
+      }
+
       <h1>Welcome Back</h1>
       <p class="subtitle">Sign in to your account</p>
 
@@ -41,11 +48,7 @@
 
         <button mat-flat-button color="primary" type="submit"
                 [disabled]="form.invalid || loading" class="sign-in-btn">
-          @if (loading) {
-            <mat-spinner diameter="20"></mat-spinner>
-          } @else {
-            Sign In
-          }
+          Sign In
         </button>
 
         <div class="forgot-link">

@@ -41,13 +41,13 @@
         <div class="empty-state">
           <mat-icon>location_off</mat-icon>
           <h2>No active GPS rides</h2>
-          <p>Live tracking only appears for Smart-tier SMS vendors currently en route.</p>
+          <p>Live tracking appears once a vendor has accepted a ride and their location has started reporting.</p>
         </div>
       } @else {
         @for (ride of rides; track ride.id) {
           <div class="ride-card" [class.selected]="selectedRide?.id === ride.id" (click)="selectRide(ride)">
             <div class="ride-card-top">
-              <mat-icon [style.color]="getStatusColor(ride.status)">circle</mat-icon>
+              <mat-icon [style.color]="getPersonColor(ride)" matTooltip="Driver color">circle</mat-icon>
               <span class="resident-name">{{ ride.residentName }}</span>
               @if (isOrgAdmin) {
                 <span class="facility-tag">{{ ride.facilityName }}</span>
@@ -83,7 +83,7 @@
       <div class="map-info-bar">
         @if (selectedRide) {
           <div class="map-info-left">
-            <mat-icon [style.color]="getStatusColor(selectedRide.status)">person_pin_circle</mat-icon>
+            <mat-icon [style.color]="getPersonColor(selectedRide)">person_pin_circle</mat-icon>
             <span><strong>{{ selectedRide.residentName }}</strong> · {{ selectedRide.vendorName ?? 'Unknown' }}</span>
           </div>
           <div class="map-info-right">

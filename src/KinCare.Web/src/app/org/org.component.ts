@@ -72,7 +72,7 @@ export class OrgComponent implements OnInit {
   constructor(private http: HttpClient, private fb: FormBuilder, private snackBar: MatSnackBar) {
     this.inviteForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      role: ['Coordinator', Validators.required],
+      role: ['FacilityAdmin', Validators.required],
       facilityId: [''],
     });
   }
@@ -104,7 +104,7 @@ export class OrgComponent implements OnInit {
       next: () => {
         this.inviting = false;
         this.showInviteForm = false;
-        this.inviteForm.reset({ role: 'Coordinator' });
+        this.inviteForm.reset({ role: 'FacilityAdmin' });
         this.snackBar.open('Invitation sent successfully', 'Close', { duration: 3000 });
         this.loadUsers();
       },

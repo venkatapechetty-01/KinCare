@@ -12,6 +12,11 @@
     <mat-card-content>
       <div class="photo-section">
         <div class="photo-preview">
+          @if (uploadingPhoto) {
+            <div class="photo-upload-overlay">
+              <mat-spinner diameter="28"></mat-spinner>
+            </div>
+          }
           @if (photoPreview || currentPhotoUrl) {
             <img [src]="photoPreview || currentPhotoUrl" alt="Profile preview" class="preview-image">
           } @else {
@@ -27,14 +32,19 @@
             accept="image/*"
             (change)="onFileSelected($event)"
             style="display: none">
-          <button mat-raised-button color="primary" (click)="fileInput.click()">
+          <button mat-raised-button color="primary" (click)="fileInput.click()" [disabled]="uploadingPhoto">
             <mat-icon>upload</mat-icon>
             Choose Photo
           </button>
           @if (selectedFile) {
-            <button mat-raised-button color="accent" (click)="uploadPhoto()">
-              <mat-icon>check</mat-icon>
-              Upload Photo
+            <button mat-raised-button color="accent" (click)="uploadPhoto()" [disabled]="uploadingPhoto">
+              @if (uploadingPhoto) {
+                <mat-spinner diameter="18"></mat-spinner>
+                <span>Uploading the photo…</span>
+              } @else {
+                <mat-icon>check</mat-icon>
+                <span>Upload Photo</span>
+              }
             </button>
           }
           @if (photoPreview || selectedFile || currentPhotoUrl) {

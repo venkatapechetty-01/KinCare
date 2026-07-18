@@ -268,14 +268,16 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private buildIcon(ride: ActiveRideLocation): L.Icon {
-    // If vendor has a photo URL use circular photo pin, otherwise colored status dot
+    // Pin color identifies the person (vendor) so multiple simultaneous rides are easy to
+    // tell apart at a glance; ride phase is still shown via the small status dot + popup badge.
+    const personColor = this.getVendorColor(ride);
     const statusColor = this.getStatusHex(ride.status);
 
     if (ride.vendorPhotoUrl) {
       return L.icon({
-        iconUrl: this.buildPhotoPin(ride.vendorPhotoUrl, statusColor),
-        iconSize: [52, 52],
-        iconAnchor: [26, 26],
+        iconUrl: this.buildPhotoPin(ride.vendorPhotoUrl, personColor, statusColor),
+        iconSize: [56, 64],
+        iconAnchor: [28, 60],
       });
     }
 
@@ -283,10 +285,11 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const initials = this.getInitials(ride.vendorName ?? ride.residentName);
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="56">
-        <circle cx="24" cy="24" r="22" fill="${statusColor}" stroke="white" stroke-width="3"/>
+        <circle cx="24" cy="24" r="22" fill="${personColor}" stroke="white" stroke-width="3"/>
         <text x="24" y="30" text-anchor="middle" font-family="Arial" font-size="14"
               font-weight="bold" fill="white">${initials}</text>
-        <polygon points="24,50 18,38 30,38" fill="${statusColor}"/>
+        <polygon points="24,50 18,38 30,38" fill="${personColor}"/>
+        <circle cx="38" cy="10" r="6" fill="${statusColor}" stroke="white" stroke-width="2"/>
       </svg>`;
 
     return L.icon({
@@ -296,8 +299,9 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private buildPhotoPin(photoUrl: string, borderColor: string): string {
-    // Returns an SVG data URL with the photo clipped to a circle + colored border
+  private buildPhotoPin(photoUrl: string, borderColor: string, statusColor: string): string {
+    // Returns an SVG data URL with the photo clipped to a circle + person-colored border
+    // and a small status dot in the corner (so ride phase is still visible at a glance).
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="56" height="64">
         <defs>
@@ -306,14 +310,34 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
         <circle cx="28" cy="28" r="26" fill="${borderColor}"/>
         <image href="${photoUrl}" x="4" y="4" width="48" height="48" clip-path="url(#c)" preserveAspectRatio="xMidYMid slice"/>
         <polygon points="28,60 20,44 36,44" fill="${borderColor}"/>
+        <circle cx="46" cy="10" r="7" fill="${statusColor}" stroke="white" stroke-width="2"/>
       </svg>`;
     return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
   }
 
+  // Fixed high-contrast palette, deterministically assigned per vendor (via a stable hash of
+  // vendorId) so the same driver always gets the same color across refreshes/sessions, and
+  // distinct drivers reliably land on visually distinct colors.
+  private readonly vendorColorPalette = [
+    '#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa',
+    '#00897b', '#d81b60', '#3949ab', '#6d4c41', '#00acc1',
+    '#7cb342', '#f4511e',
+  ];
+
+  private getVendorColor(ride: ActiveRideLocation): string {
+    const key = ride.vendorId ?? ride.vendorName ?? ride.id;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    }
+    return this.vendorColorPalette[hash % this.vendorColorPalette.length];
+  }
+
   private buildPopupContent(ride: ActiveRideLocation): string {
+    const personColor = this.getVendorColor(ride);
     const photoHtml = ride.vendorPhotoUrl
-      ? `<img src="${ride.vendorPhotoUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid ${this.getStatusHex(ride.status)}" />`
-      : `<div style="width:44px;height:44px;border-radius:50%;background:${this.getStatusHex(ride.status)};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px">${this.getInitials(ride.vendorName ?? ride.residentName)}</div>`;
+      ? `<img src="${ride.vendorPhotoUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid ${personColor}" />`
+      : `<div style="width:44px;height:44px;border-radius:50%;background:${personColor};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px">${this.getInitials(ride.vendorName ?? ride.residentName)}</div>`;
 
     const phone = ride.vendorPhone
       ? `<a href="tel:${ride.vendorPhone}" style="color:#3f51b5;text-decoration:none;font-size:12px">📞 ${ride.vendorPhone}</a>`
@@ -356,6 +380,10 @@ export class LiveMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getStatusColor(status: string): string {
     return this.getStatusHex(status);
+  }
+
+  getPersonColor(ride: ActiveRideLocation): string {
+    return this.getVendorColor(ride);
   }
 
   private getStatusHex(status: string): string {

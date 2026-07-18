@@ -1,19 +1,19 @@
 <div class="vendors-container">
   <div class="page-header">
-    <h1>Transport Vendors</h1>
-    <p class="subtitle">Manage your facility's transportation service providers</p>
+    <h1>Drivers</h1>
+    <p class="subtitle">Manage your facility's drivers and transportation service providers</p>
   </div>
 
   @if (loading) {
     <div class="loading-state">
       <mat-spinner></mat-spinner>
-      <p>Loading vendors...</p>
+      <p>Loading drivers...</p>
     </div>
   } @else if (vendors.length === 0) {
     <div class="empty-state">
       <mat-icon>local_shipping</mat-icon>
-      <h2>No vendors found</h2>
-      <p>Click the + button below to add your first transport vendor</p>
+      <h2>No drivers found</h2>
+      <p>Click the + button below to add your first driver</p>
     </div>
   } @else {
     <div class="vendors-grid">
@@ -21,9 +21,29 @@
       <mat-card class="vendor-card">
         <mat-card-header>
           <div class="vendor-header">
-            <div class="vendor-icon" [class.wheelchair-vendor]="vendor.vendorType === 'Wheelchair'"
-                 [class.ambulatory-vendor]="vendor.vendorType === 'Ambulatory'">
-              <mat-icon>{{ getVendorTypeIcon(vendor.vendorType) }}</mat-icon>
+            <div class="vendor-photo-wrap">
+              <input type="file" #photoInput accept="image/*" style="display:none"
+                     (change)="onPhotoSelected(vendor, $event)">
+              @if (uploadingPhotoVendorId === vendor.id) {
+                <div class="photo-upload-overlay">
+                  <mat-spinner diameter="24"></mat-spinner>
+                </div>
+              }
+              @if (vendor.photoUrl) {
+                <img [src]="vendor.photoUrl" alt="{{ vendor.name }}" class="vendor-photo"
+                     (click)="photoInput.click()" matTooltip="Change photo">
+                <button mat-icon-button class="remove-photo-btn" (click)="removePhoto(vendor, $event)"
+                        matTooltip="Remove photo" aria-label="Remove photo">
+                  <mat-icon>close</mat-icon>
+                </button>
+              } @else {
+                <div class="vendor-icon" [class.wheelchair-vendor]="vendor.vendorType === 'Wheelchair'"
+                     [class.ambulatory-vendor]="vendor.vendorType === 'Ambulatory'"
+                     (click)="photoInput.click()" matTooltip="Add photo">
+                  <mat-icon>{{ getVendorTypeIcon(vendor.vendorType) }}</mat-icon>
+                  <mat-icon class="add-photo-badge">add_a_photo</mat-icon>
+                </div>
+              }
             </div>
             <div class="vendor-info">
               <h2>{{ vendor.name }}</h2>
@@ -49,6 +69,18 @@
             <mat-icon>phone</mat-icon>
             <span class="phone-number">{{ vendor.phoneNumber }}</span>
           </div>
+          @if (vendor.company) {
+            <div class="contact-info">
+              <mat-icon>business</mat-icon>
+              <span>{{ vendor.company }}</span>
+            </div>
+          }
+          @if (vendor.serviceArea) {
+            <div class="contact-info">
+              <mat-icon>place</mat-icon>
+              <span>{{ vendor.serviceArea }}</span>
+            </div>
+          }
           <div class="dispatch-method">
             <mat-icon>sms</mat-icon>
             <span>{{ vendor.dispatchMethod }}</span>
@@ -57,7 +89,7 @@
         <mat-card-actions>
           <button mat-raised-button color="primary" (click)="editVendor(vendor)">
             <mat-icon>edit</mat-icon>
-            Edit Vendor
+            Edit Driver
           </button>
         </mat-card-actions>
       </mat-card>

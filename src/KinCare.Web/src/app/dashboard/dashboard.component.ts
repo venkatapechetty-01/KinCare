@@ -9,10 +9,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { RideService, RideDto } from '../shared/services/ride.service';
-import { AuthService } from '../shared/auth/auth.service';
+import { SignalRService } from '../shared/services/signalr.service';
 import { Subscription } from 'rxjs';
-import { environment } from '../../environments/environment';
-import * as signalR from '@microsoft/signalr';
 
 @Component({
   selector: 'app-dashboard',
@@ -37,13 +35,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   loadingUpcoming = true;
   currentDate = new Date();
   private subscriptions = new Subscription();
-  private hubConnection: signalR.HubConnection | null = null;
 
   constructor(
     private router: Router,
     private rideService: RideService,
     private snackBar: MatSnackBar,
-    private auth: AuthService
+    private signalR: SignalRService
   ) {}
 
   ngOnInit(): void {
@@ -58,51 +55,43 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
-    this.hubConnection?.stop();
   }
 
   private connectSignalR(): void {
-    const token = this.auth.getToken();
-    if (!token) return;
-
-    this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${environment.apiUrl}/hubs/ride-status`, {
-        accessTokenFactory: () => token
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    this.hubConnection.on('RideStatusChanged', (rideId: string, newStatus: string) => {
-      const ride = this.rides.find(r => r.id === rideId);
-      const upcomingRide = this.upcomingRides.find(r => r.id === rideId);
-      if (ride) {
-        ride.status = newStatus;
-      } else if (upcomingRide) {
-        upcomingRide.status = newStatus;
-      } else {
-        // New ride dispatched — reload to get full card data
-        this.loadTodaysRides();
-        this.loadUpcomingRides();
-      }
-    });
-
-    this.hubConnection.on('LocationUpdated', (rideId: string, lat: number, lng: number) => {
-      const ride = this.rides.find(r => r.id === rideId) ?? this.upcomingRides.find(r => r.id === rideId);
-      if (ride) {
-        ride.lastKnownLat = lat;
-        ride.lastKnownLng = lng;
-        ride.lastLocationAt = new Date().toISOString();
-      }
-    });
-
-    this.hubConnection.onreconnecting(() => {
-      console.warn('SignalR reconnecting...');
-    });
-
-    this.hubConnection.start().catch(err => {
+    this.signalR.startAsync().catch(err => {
       console.warn('SignalR connection failed (real-time updates unavailable):', err);
     });
+
+    this.subscriptions.add(
+      this.signalR.rideStatusChanged$.subscribe((e) => {
+        const ride = this.rides.find(r => r.id === e.id);
+        const upcomingRide = this.upcomingRides.find(r => r.id === e.id);
+        if (ride) {
+          ride.status = e.toStatus;
+        } else if (upcomingRide) {
+          upcomingRide.status = e.toStatus;
+        }
+      })
+    );
+
+    this.subscriptions.add(
+      this.signalR.rideCreated$.subscribe(() => {
+        // A new ride was dispatched for this facility — reload to pick up the full card data.
+        this.loadTodaysRides();
+        this.loadUpcomingRides();
+      })
+    );
+
+    this.subscriptions.add(
+      this.signalR.locationUpdated$.subscribe((e) => {
+        const ride = this.rides.find(r => r.id === e.rideId) ?? this.upcomingRides.find(r => r.id === e.rideId);
+        if (ride) {
+          ride.lastKnownLat = e.latitude;
+          ride.lastKnownLng = e.longitude;
+          ride.lastLocationAt = e.lastLocationAt;
+        }
+      })
+    );
   }
 
   loadTodaysRides(): void {

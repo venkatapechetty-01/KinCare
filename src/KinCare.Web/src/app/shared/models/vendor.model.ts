@@ -7,6 +7,9 @@ export interface Vendor {
   dispatchMethod: 'SmsNemt' | 'SmsTaxi' | 'Broker';
   capabilityTier: 'Basic' | 'Smart';
   isActive: boolean;
+  photoUrl?: string;
+  company?: string;
+  serviceArea?: string;
 }
 
 export interface CreateVendorRequest {
@@ -16,6 +19,8 @@ export interface CreateVendorRequest {
   vendorType: 'Wheelchair' | 'Ambulatory';
   dispatchMethod: 'SmsNemt' | 'SmsTaxi' | 'Broker';
   capabilityTier: 'Basic' | 'Smart';
+  company?: string;
+  serviceArea?: string;
 }
 
 export interface UpdateVendorRequest {
@@ -24,4 +29,6 @@ export interface UpdateVendorRequest {
   vendorType: 'Wheelchair' | 'Ambulatory';
   dispatchMethod: 'SmsNemt' | 'SmsTaxi' | 'Broker';
   capabilityTier: 'Basic' | 'Smart';
+  company?: string;
+  serviceArea?: string;
 }

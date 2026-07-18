@@ -7,6 +7,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,7 +16,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { VendorService } from '../shared/services/vendor.service';
 import { Vendor, CreateVendorRequest } from '../shared/models/vendor.model';
-import { Subscription } from 'rxjs';
+import { Subscription, map } from 'rxjs';
 
 @Component({
   selector: 'app-vendors',
@@ -30,6 +31,7 @@ import { Subscription } from 'rxjs';
     MatChipsModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     MatDialogModule
   ],
   templateUrl: './vendors.component.html',
@@ -38,6 +40,7 @@ import { Subscription } from 'rxjs';
 export class VendorsComponent implements OnInit, OnDestroy {
   vendors: Vendor[] = [];
   loading = true;
+  uploadingPhotoVendorId: string | null = null;
   private subscriptions = new Subscription();
 
   constructor(
@@ -82,7 +85,10 @@ export class VendorsComponent implements OnInit, OnDestroy {
   }
 
   editVendor(vendor: Vendor): void {
-    this.snackBar.open(`Edit vendor: ${vendor.name}`, 'Close', { duration: 3000 });
+    const dialogRef = this.dialog.open(VendorDialogComponent, { width: '560px', data: { vendor } });
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) this.loadVendors();
+    });
   }
 
   deleteVendor(vendor: Vendor): void {
@@ -105,6 +111,45 @@ export class VendorsComponent implements OnInit, OnDestroy {
   getVendorTypeIcon(type: string): string {
     return type === 'Wheelchair' ? 'accessible' : 'local_taxi';
   }
+
+  onPhotoSelected(vendor: Vendor, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    this.uploadingPhotoVendorId = vendor.id;
+    // Indefinite duration — replaced by the success/error snackbar below the moment the
+    // upload settles, rather than timing out mid-upload.
+    const uploadingRef = this.snackBar.open('Uploading the photo…', undefined, { panelClass: ['info-snackbar'] });
+
+    this.subscriptions.add(
+      this.vendorService.uploadPhoto(vendor.id, file).subscribe({
+        next: (res) => {
+          vendor.photoUrl = res.photoUrl;
+          this.uploadingPhotoVendorId = null;
+          uploadingRef.dismiss();
+          this.snackBar.open('Photo updated!', 'Close', { duration: 2500, panelClass: ['success-snackbar'] });
+        },
+        error: (error) => {
+          this.uploadingPhotoVendorId = null;
+          uploadingRef.dismiss();
+          const message = error?.error?.error || 'Failed to upload photo. Max 5 MB, JPEG/PNG/WebP only.';
+          this.snackBar.open(message, 'Close', { duration: 5000, panelClass: ['error-snackbar'] });
+        }
+      })
+    );
+  }
+
+  removePhoto(vendor: Vendor, event: Event): void {
+    event.stopPropagation();
+    this.subscriptions.add(
+      this.vendorService.removePhoto(vendor.id).subscribe({
+        next: () => { vendor.photoUrl = undefined; },
+        error: () => this.snackBar.open('Failed to remove photo.', 'Close', { duration: 4000, panelClass: ['error-snackbar'] })
+      })
+    );
+  }
 }
 
 // Dialog Component
@@ -124,7 +169,7 @@ export class VendorsComponent implements OnInit, OnDestroy {
     MatSnackBarModule
   ],
   template: `
-    <h2 mat-dialog-title>Add Driver / Vendor</h2>
+    <h2 mat-dialog-title>{{ isEdit ? 'Edit' : 'Add' }} Driver / Vendor</h2>
     <mat-dialog-content>
       <form [formGroup]="form" class="vendor-form">
         <mat-form-field appearance="outline" class="full-width">
@@ -154,6 +199,24 @@ export class VendorsComponent implements OnInit, OnDestroy {
           }
           @if (form.get('phoneNumber')?.hasError('duplicate')) {
             <mat-error>A driver with this phone number already exists.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Company (optional)</mat-label>
+          <input matInput formControlName="company" placeholder="e.g. Metro Taxi Co" />
+          <mat-icon matIconPrefix>business</mat-icon>
+          @if (form.get('company')?.hasError('maxlength')) {
+            <mat-error>Company cannot exceed 200 characters</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Service Area (optional)</mat-label>
+          <input matInput formControlName="serviceArea" placeholder="e.g. Detroit Metro" />
+          <mat-icon matIconPrefix>place</mat-icon>
+          @if (form.get('serviceArea')?.hasError('maxlength')) {
+            <mat-error>Service area cannot exceed 200 characters</mat-error>
           }
         </mat-form-field>
 
@@ -201,8 +264,8 @@ export class VendorsComponent implements OnInit, OnDestroy {
           <mat-spinner diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
           Saving...
         } @else {
-          <mat-icon>add</mat-icon>
-          Add Driver
+          <mat-icon>{{ isEdit ? 'check' : 'add' }}</mat-icon>
+          {{ isEdit ? 'Save Changes' : 'Add Driver' }}
         }
       </button>
     </mat-dialog-actions>
@@ -285,23 +348,29 @@ export class VendorsComponent implements OnInit, OnDestroy {
 export class VendorDialogComponent implements OnDestroy {
   form: FormGroup;
   submitting = false;
+  isEdit: boolean;
   private subscriptions = new Subscription();
 
   constructor(
     private fb: FormBuilder,
     private dialogRef: MatDialogRef<VendorDialogComponent>,
     private vendorService: VendorService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    @Inject(MAT_DIALOG_DATA) private data: { vendor?: Vendor }
   ) {
+    this.isEdit = !!this.data?.vendor;
+    const v = this.data?.vendor;
     this.form = this.fb.group({
-      name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]],
-      phoneNumber: ['', [
+      name: [v?.name ?? '', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]],
+      phoneNumber: [v?.phoneNumber ?? '', [
         Validators.required,
         Validators.pattern(/^\+?[\d\s\-\(\)]{7,20}$/)
       ]],
-      vendorType: ['', [Validators.required]],
-      dispatchMethod: ['', [Validators.required]],
-      capabilityTier: ['', [Validators.required]]
+      vendorType: [v?.vendorType ?? '', [Validators.required]],
+      dispatchMethod: [v?.dispatchMethod ?? '', [Validators.required]],
+      capabilityTier: [v?.capabilityTier ?? '', [Validators.required]],
+      company: [v?.company ?? '', [Validators.maxLength(200)]],
+      serviceArea: [v?.serviceArea ?? '', [Validators.maxLength(200)]]
     });
   }
 
@@ -322,10 +391,14 @@ export class VendorDialogComponent implements OnDestroy {
     this.submitting = true;
     const request: CreateVendorRequest = this.form.value;
 
+    const save$ = this.isEdit
+      ? this.vendorService.update(this.data.vendor!.id, request)
+      : this.vendorService.create(request).pipe(map(() => undefined));
+
     this.subscriptions.add(
-      this.vendorService.create(request).subscribe({
+      save$.subscribe({
         next: () => {
-          this.snackBar.open('Driver added successfully!', 'Close', {
+          this.snackBar.open(this.isEdit ? 'Driver updated successfully!' : 'Driver added successfully!', 'Close', {
             duration: 3000,
             panelClass: ['success-snackbar']
           });
@@ -340,11 +413,10 @@ export class VendorDialogComponent implements OnDestroy {
               panelClass: ['error-snackbar']
             });
           } else {
-            console.error('Error creating vendor:', error);
-            this.snackBar.open('Failed to add driver. Please try again.', 'Close', {
-              duration: 5000,
-              panelClass: ['error-snackbar']
-            });
+            console.error('Error saving vendor:', error);
+            this.snackBar.open(
+              this.isEdit ? 'Failed to update driver. Please try again.' : 'Failed to add driver. Please try again.',
+              'Close', { duration: 5000, panelClass: ['error-snackbar'] });
           }
         }
       })

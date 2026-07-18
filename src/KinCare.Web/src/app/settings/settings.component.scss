@@ -65,6 +65,23 @@
       align-items: center;
 
       .photo-preview {
+        position: relative;
+
+        .photo-upload-overlay {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 2;
+
+          ::ng-deep circle {
+            stroke: #ffffff;
+          }
+        }
+
         .preview-image {
           width: 200px;
           height: 200px;

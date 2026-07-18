@@ -29,4 +29,14 @@ export class VendorService {
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  uploadPhoto(id: string, file: File): Observable<{ photoUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ photoUrl: string }>(`${this.apiUrl}/${id}/photo`, formData);
+  }
+
+  removePhoto(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}/photo`);
+  }
 }

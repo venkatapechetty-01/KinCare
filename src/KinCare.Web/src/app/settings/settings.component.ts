@@ -214,7 +214,7 @@ export class SettingsComponent implements OnInit {
     switch (role) {
       case 'SuperAdmin': return 'Super Administrator';
       case 'OrgAdmin': return 'Organization Administrator';
-      case 'Coordinator': return 'Facility Coordinator';
+      case 'FacilityAdmin': return 'Facility Admin';
       default: return role;
     }
   }

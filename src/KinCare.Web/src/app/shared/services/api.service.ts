@@ -11,14 +11,13 @@ import {
   DispatchOfferListSchema,
   FacilityListSchema, FacilitySchema,
   OrgUserListSchema,
-  FacilityMetricsListSchema,
   LoginResponseSchema, RegisterResponseSchema,
   InviteDetailsSchema,
   BookRideResponseSchema,
   TodayCountSchema,
   Resident, Vendor, RideSummary, RideDetail,
   ActiveRideLocation, DispatchOffer,
-  Facility, OrgUser, FacilityMetrics,
+  Facility, OrgUser,
   LoginResponse, RegisterResponse, InviteDetails,
   BookRideResponse,
 } from '../schemas/api.schemas';
@@ -195,11 +194,5 @@ export class ApiService {
 
   deactivateUser(id: string): Observable<void> {
     return this.http.delete<void>(`${this.api}/api/org/users/${id}`);
-  }
-
-  getOrgMetrics(): Observable<FacilityMetrics[]> {
-    return this.http.get(`${this.api}/api/org/metrics`).pipe(
-      parse(FacilityMetricsListSchema),
-    );
   }
 }

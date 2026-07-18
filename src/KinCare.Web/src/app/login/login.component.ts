@@ -50,15 +50,20 @@ export class LoginComponent {
     this.loading = true;
 
     this.auth.login(this.form.value).subscribe({
-      next: (res) => {
-        this.loading = false;
+      next: async (res) => {
         console.log('[Login] success, user:', this.auth.currentUser);
         if (!this.auth.currentUser) {
+          this.loading = false;
           console.error('[Login] token stored but currentUser is null — JWT parse failed', res);
           this.error = 'Login succeeded but session could not be loaded. Please try again.';
           return;
         }
-        this.router.navigate(['/dashboard']);
+        // Keep the spinner up through the actual route transition — the login API call
+        // itself is fast, but navigation + lazy-loading the dashboard bundle + its first
+        // data fetch was an invisible gap that made login feel stuck once the button
+        // spinner disappeared early.
+        await this.router.navigate(['/dashboard']);
+        this.loading = false;
       },
       error: (err) => {
         this.loading = false;

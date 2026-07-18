@@ -299,7 +299,8 @@
         .tracking-live {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          flex-wrap: wrap;
+          gap: 0.5rem 0.75rem;
           margin-top: 1rem;
           padding: 0.75rem 1rem;
           background: #e8f5e9;
@@ -313,11 +314,20 @@
             animation: pulse 1.5s infinite;
           }
 
+          // The status text ("Live — En Route") must never break mid-phrase — if the row
+          // is too narrow to fit both this and the links, wrap the whole links block onto
+          // its own line instead of letting this text shrink and wrap internally, which
+          // used to interleave "View Live Location"/"Open Map" in the middle of the phrase.
+          > span {
+            white-space: nowrap;
+          }
+
           .map-links {
             margin-left: auto;
             display: flex;
             align-items: center;
-            gap: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
           }
 
           .map-link {
