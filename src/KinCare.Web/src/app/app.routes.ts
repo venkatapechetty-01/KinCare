@@ -17,6 +17,14 @@ export const routes: Routes = [
       import('./accept-invite/accept-invite.component').then((m) => m.AcceptInviteComponent),
   },
   {
+    path: 'terms',
+    loadComponent: () => import('./terms/terms.component').then((m) => m.TermsComponent),
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./privacy/privacy.component').then((m) => m.PrivacyComponent),
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -15,7 +15,7 @@ import { RideService } from './shared/services/ride.service';
 import { filter } from 'rxjs/operators';
 import { Subscription, interval } from 'rxjs';
 
-const ANON_ROUTES = ['/login', '/register', '/invite'];
+const ANON_ROUTES = ['/login', '/register', '/invite', '/terms', '/privacy'];
 
 @Component({
   selector: 'app-root',
