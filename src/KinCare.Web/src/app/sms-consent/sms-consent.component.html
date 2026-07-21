@@ -1,0 +1,80 @@
+<div class="policy-page">
+  <div class="policy-header">
+    <a routerLink="/login" class="back-link">
+      <mat-icon>arrow_back</mat-icon>
+      Back to KinCare
+    </a>
+    <h1>SMS Opt-In &amp; Consent Process</h1>
+    <p class="updated">Last updated: {{ lastUpdated }}</p>
+  </div>
+
+  <div class="policy-body">
+    <p>
+      This page documents, in full, how KinCare obtains consent from transport vendors ("drivers")
+      before enrolling them to receive SMS messages through the Service. It exists specifically so
+      that our messaging opt-in process is publicly verifiable, in addition to being described in
+      our <a routerLink="/terms">Terms of Service</a> and <a routerLink="/privacy">Privacy
+      Policy</a>.
+    </p>
+
+    <h2>Who opts in, and how</h2>
+    <p>
+      The recipients of KinCare's SMS messages are <strong>transport vendors</strong> — drivers or
+      transport companies contracted by a senior living facility to transport residents. KinCare
+      does not send marketing or promotional SMS to consumers, residents, or the general public.
+    </p>
+    <p>
+      Vendors are not self-service sign-ups. There is no public web form or SMS keyword a stranger
+      can use to start receiving KinCare messages. Instead, opt-in happens as part of a real,
+      individual business relationship: a facility coordinator brings on a specific, named transport
+      vendor as an approved service provider, and obtains that vendor's explicit consent
+      <strong>verbally</strong> — by phone or in person — before entering their phone number into
+      the KinCare system.
+    </p>
+
+    <h2>The exact consent script used</h2>
+    <p>Before a vendor's phone number is ever entered into KinCare, the onboarding coordinator reads them the following, in full, and requires an explicit "yes":</p>
+    <blockquote>
+      "As a KinCare transport partner, you'll receive text messages from KinCare for ride dispatch
+      requests and status updates — including new pickup requests, and status check-in prompts as
+      you complete each trip. Message frequency varies with how many rides you're assigned to.
+      <strong>Message and data rates may apply.</strong> Reply <strong>HELP</strong> for help, or
+      <strong>STOP</strong> at any time to opt out of these messages. Our Terms of Service are at
+      kincare-web.onrender.com/terms and our Privacy Policy is at kincare-web.onrender.com/privacy.
+      <strong>Do you consent to receive these text messages — yes or no?</strong>"
+    </blockquote>
+    <p>
+      Only after the vendor affirmatively answers "yes" does the coordinator proceed to enter the
+      vendor's name and phone number into KinCare. This satisfies each required element of a
+      compliant opt-in disclosure: service description, message content, message frequency, the
+      rates disclaimer, HELP instructions, STOP/opt-out instructions, links to our Terms of Service
+      and Privacy Policy, and an explicit request for consent.
+    </p>
+
+    <h2>Confirmation of enrollment</h2>
+    <p>
+      Once a vendor's number is entered following the consent script above, they are enrolled and
+      begin receiving ride dispatch and status SMS messages tied to residents they've been engaged
+      to transport, sent from KinCare's registered number. They may reply <strong>STOP</strong> at
+      any time to opt out — this is handled automatically by our messaging provider (Twilio)'s
+      built-in opt-out handling, independent of KinCare's own systems, ensuring opt-out requests are
+      always honored even in the event of an application outage.
+    </p>
+
+    <h2>No text-based ("keyword") opt-in is offered</h2>
+    <p>
+      KinCare does not support opting in by texting a keyword to our number — there is no public
+      "text JOIN to sign up" flow, because our recipients are known, individually contracted
+      business vendors, not the general public. Any message received from a number not already
+      onboarded through the process above is not enrolled to receive further messages.
+    </p>
+
+    <h2>Message content and frequency</h2>
+    <p>
+      Vendors receive messages tied to ride dispatch and status updates — new ride offers, one-tap
+      status check-in prompts, and trip-completion confirmations. Message frequency varies directly
+      with how many rides a vendor is assigned; a vendor assigned no rides in a given period receives
+      no messages. <strong>Message and data rates may apply.</strong>
+    </p>
+  </div>
+</div>

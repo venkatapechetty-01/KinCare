@@ -25,6 +25,11 @@ export const routes: Routes = [
     loadComponent: () => import('./privacy/privacy.component').then((m) => m.PrivacyComponent),
   },
   {
+    path: 'sms-consent',
+    loadComponent: () =>
+      import('./sms-consent/sms-consent.component').then((m) => m.SmsConsentComponent),
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>
