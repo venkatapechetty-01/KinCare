@@ -106,6 +106,37 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- Pending Vendor Accept Links — shown while awaiting acceptance, e.g. SMS delivery is down -->
+    @if (rideDetail.status === 'Dispatched' && pendingOffers.length > 0) {
+      <mat-card class="detail-card offers-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>pending_actions</mat-icon>
+            Awaiting Vendor Response
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="offers-hint">
+            If a vendor hasn't received the dispatch text message, copy their accept link below and
+            send it manually (call, text, WhatsApp, etc.) — it lets them accept or decline the ride
+            without SMS.
+          </p>
+          @for (offer of pendingOffers; track offer.vendorId) {
+            <div class="offer-row">
+              <mat-icon>local_shipping</mat-icon>
+              <div class="offer-details">
+                <span class="offer-vendor-name">{{ offer.vendorName }}</span>
+                <span class="offer-vendor-phone">{{ offer.vendorPhone }}</span>
+              </div>
+              <button mat-stroked-button class="copy-link-btn" (click)="copyOfferLink(offer)" matTooltip="Copy accept link">
+                <mat-icon>content_copy</mat-icon> Copy Accept Link
+              </button>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+
     <!-- Live Tracking Card — only shown when GPS is active -->
     @if (hasLiveLocation) {
       <mat-card class="detail-card tracking-card">

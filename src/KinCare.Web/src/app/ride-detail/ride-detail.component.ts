@@ -10,7 +10,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RideService, RideDetailDto } from '../shared/services/ride.service';
+import { RideService, RideDetailDto, DispatchOfferDto } from '../shared/services/ride.service';
 import { SignalRService, LocationUpdatedEvent } from '../shared/services/signalr.service';
 import { TrustedUrlPipe } from '../shared/pipes/trusted-url.pipe';
 import { Subscription } from 'rxjs';
@@ -38,6 +38,7 @@ import { environment } from '../../environments/environment';
 })
 export class RideDetailComponent implements OnInit, OnDestroy {
   rideDetail: RideDetailDto | null = null;
+  pendingOffers: DispatchOfferDto[] = [];
   loading = true;
   rideId: string = '';
   private subscriptions = new Subscription();
@@ -92,9 +93,30 @@ export class RideDetailComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.subscriptions.add(
       this.rideService.getRideDetail(this.rideId).subscribe({
-        next: (detail) => { this.rideDetail = detail; this.loading = false; },
+        next: (detail) => {
+          this.rideDetail = detail;
+          this.loading = false;
+          if (detail.status === 'Dispatched') this.loadPendingOffers();
+          else this.pendingOffers = [];
+        },
         error: () => { this.snackBar.open('Failed to load ride details.', 'Close', { duration: 5000 }); this.loading = false; },
       })
+    );
+  }
+
+  private loadPendingOffers(): void {
+    this.subscriptions.add(
+      this.rideService.getDispatchOffers(this.rideId).subscribe({
+        next: (offers) => { this.pendingOffers = offers.filter((o) => o.status === 'Pending' && o.trackingUrl); },
+        error: () => {},
+      })
+    );
+  }
+
+  copyOfferLink(offer: DispatchOfferDto): void {
+    if (!offer.trackingUrl) return;
+    navigator.clipboard.writeText(offer.trackingUrl).then(() =>
+      this.snackBar.open(`Accept link for ${offer.vendorName} copied to clipboard!`, 'Close', { duration: 2500 })
     );
   }
 

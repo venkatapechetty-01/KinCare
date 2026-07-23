@@ -556,17 +556,31 @@ public class RideService
 
     public async Task<List<DispatchOfferDto>> GetDispatchOffersAsync(Guid rideId, Guid organizationId)
     {
-        return await _db.RideDispatchOffers
+        var offers = await _db.RideDispatchOffers
             .AsNoTracking()
             .Where(o => o.RideId == rideId && o.Ride.OrganizationId == organizationId)
-            .Select(o => new DispatchOfferDto(
+            .Select(o => new
+            {
                 o.VendorId,
-                o.Vendor.Name,
-                o.Vendor.PhoneNumber,
+                VendorName = o.Vendor.Name,
+                VendorPhone = o.Vendor.PhoneNumber,
                 o.Status,
                 o.SentAt,
-                o.RespondedAt))
+                o.RespondedAt,
+                o.TrackingToken,
+            })
             .ToListAsync();
+
+        return offers
+            .Select(o => new DispatchOfferDto(
+                o.VendorId,
+                o.VendorName,
+                o.VendorPhone,
+                o.Status,
+                o.SentAt,
+                o.RespondedAt,
+                o.TrackingToken is not null ? $"{_appConfig.BaseUrl}/track/{o.TrackingToken}" : null))
+            .ToList();
     }
 
     public async Task<Ride> RedispatchAsync(Guid rideId, Guid organizationId)
@@ -684,4 +698,4 @@ public record RideEventDto(
 
 public record DispatchOfferDto(
     Guid VendorId, string VendorName, string VendorPhone,
-    string Status, DateTime SentAt, DateTime? RespondedAt);
+    string Status, DateTime SentAt, DateTime? RespondedAt, string? TrackingUrl);

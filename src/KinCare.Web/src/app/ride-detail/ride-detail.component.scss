@@ -187,6 +187,54 @@
     }
   }
 
+  .offers-card {
+    .offers-hint {
+      margin: 0 0 1.25rem;
+      font-size: 0.95rem;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .offer-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.9rem 1.1rem;
+      background: #f0f4ff;
+      border: 1px solid #c5cae9;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+
+      &:last-child { margin-bottom: 0; }
+
+      > mat-icon { color: #3f51b5; flex-shrink: 0; }
+
+      .offer-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        flex: 1;
+
+        .offer-vendor-name {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #000000;
+        }
+
+        .offer-vendor-phone {
+          font-size: 0.85rem;
+          color: #666;
+        }
+      }
+
+      .copy-link-btn {
+        white-space: nowrap;
+        font-size: 0.9rem !important;
+        flex-shrink: 0;
+      }
+    }
+  }
+
   .action-buttons {
     display: flex;
     flex-wrap: wrap;

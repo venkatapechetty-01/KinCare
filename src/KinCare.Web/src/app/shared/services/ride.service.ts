@@ -47,6 +47,16 @@ export interface RideEventDto {
   occurredAt: string;
 }
 
+export interface DispatchOfferDto {
+  vendorId: string;
+  vendorName: string;
+  vendorPhone: string;
+  status: string;
+  sentAt: string;
+  respondedAt?: string;
+  trackingUrl?: string;
+}
+
 export interface RideDetailDto {
   id: string;
   facilityId: string;
@@ -88,6 +98,10 @@ export class RideService {
 
   getRideDetail(id: string): Observable<RideDetailDto> {
     return this.http.get<RideDetailDto>(`${this.apiUrl}/${id}`);
+  }
+
+  getDispatchOffers(id: string): Observable<DispatchOfferDto[]> {
+    return this.http.get<DispatchOfferDto[]>(`${this.apiUrl}/${id}/offers`);
   }
 
   getHistory(params?: { startDate?: string; endDate?: string; status?: string; page?: number; pageSize?: number }): Observable<{ items: RideDto[]; totalCount: number }> {
