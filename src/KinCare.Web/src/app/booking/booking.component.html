@@ -66,6 +66,17 @@
           }
         </mat-form-field>
 
+        @if (canQuickAdd) {
+          <button type="button" mat-stroked-button class="quick-add-btn" (click)="quickAddResident()" [disabled]="quickAdding">
+            @if (quickAdding) {
+              <mat-spinner diameter="18"></mat-spinner>
+            } @else {
+              <mat-icon>person_add</mat-icon>
+            }
+            Add "{{ typedResidentName }}" as a new resident
+          </button>
+        }
+
         @if (selectedResident) {
           <div class="selected-resident-card">
             <div class="src-avatar">{{ selectedResident.firstName[0] }}{{ selectedResident.lastName[0] }}</div>

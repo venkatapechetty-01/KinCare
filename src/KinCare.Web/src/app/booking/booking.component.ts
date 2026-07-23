@@ -68,6 +68,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   selectedResident: Resident | null = null;
   loading = false;
   submitting = false;
+  quickAdding = false;
   facilityAddress: string | null = null;
   pickupSuggestions: AddressSuggestion[] = [];
   destinationSuggestions: AddressSuggestion[] = [];
@@ -137,6 +138,14 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.loadFacilityAddress();
     this.watchAddressField('pickupAddress', suggestions => this.pickupSuggestions = suggestions);
     this.watchAddressField('destinationAddress', suggestions => this.destinationSuggestions = suggestions);
+
+    this.subscriptions.add(
+      this.bookingForm.get('residentName')!.valueChanges.subscribe((value: string) => {
+        if (this.selectedResident && this.getResidentDisplay(this.selectedResident) !== value) {
+          this.selectedResident = null;
+        }
+      })
+    );
   }
 
   private watchAddressField(controlName: string, onResults: (suggestions: AddressSuggestion[]) => void): void {
@@ -234,6 +243,65 @@ export class BookingComponent implements OnInit, OnDestroy {
     return this.transportModes.find(m => m.value === val);
   }
 
+  get typedResidentName(): string {
+    return ((this.bookingForm.get('residentName')?.value as string) || '').trim();
+  }
+
+  get canQuickAdd(): boolean {
+    const name = this.typedResidentName;
+    if (!name || !/\s/.test(name) || this.selectedResident) return false;
+    const lower = name.toLowerCase();
+    return !this.residents.some(r =>
+      this.getResidentDisplay(r).toLowerCase() === lower ||
+      `${r.firstName} ${r.lastName}`.toLowerCase() === lower
+    );
+  }
+
+  quickAddResident(): void {
+    const name = this.typedResidentName;
+    const spaceIdx = name.indexOf(' ');
+    const firstName = name.slice(0, spaceIdx).trim();
+    const lastName = name.slice(spaceIdx + 1).trim();
+    if (!firstName || !lastName || this.quickAdding) return;
+
+    this.quickAdding = true;
+    this.subscriptions.add(
+      this.residentService.create({
+        firstName,
+        lastName,
+        needsWheelchair: false,
+        needsOxygen: false,
+        needsStretcher: false,
+        needsWalker: false,
+      }).subscribe({
+        next: (res) => {
+          const newResident: Resident = {
+            id: res.id,
+            facilityId: '',
+            firstName,
+            lastName,
+            needsWheelchair: false,
+            needsOxygen: false,
+            needsStretcher: false,
+            needsWalker: false,
+          };
+          this.residents = [...this.residents, newResident];
+          this.selectedResident = newResident;
+          this.bookingForm.patchValue({ residentName: this.getResidentDisplay(newResident) });
+          this.quickAdding = false;
+          this.snackBar.open(`${firstName} ${lastName} added as a new resident.`, 'Close', { duration: 3000 });
+        },
+        error: () => {
+          this.quickAdding = false;
+          this.snackBar.open('Failed to add new resident. Please try again.', 'Close', {
+            duration: 5000,
+            panelClass: ['error-snackbar'],
+          });
+        },
+      })
+    );
+  }
+
   getResidentDisplay(resident: Resident): string {
     const needs: string[] = [];
     if (resident.needsWheelchair) needs.push('Wheelchair');
@@ -263,7 +331,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     if (!resident && residentName) {
       this.snackBar.open(
-        `No resident named "${residentName}" found. Add them on the Residents page first.`,
+        `No resident named "${residentName}" found. Tap "Add as a new resident" below, or add them on the Residents page first.`,
         'Close',
         { duration: 6000, panelClass: ['error-snackbar'] }
       );
